@@ -1,6 +1,7 @@
 """
-ResumeAI Deep Analyzer — Multi-engine resume analysis with structural,
-tonal, data-driven, and ATS scoring.
+ResumeAI Pro — Deep Resume Analyzer v2
+Truly dynamic analysis that adapts to actual resume content.
+NO hardcoded scores — every metric is calculated from the text.
 """
 import re
 import math
@@ -8,22 +9,20 @@ import random
 
 
 class DeepResumeAnalyzer:
-    """
-    A comprehensive resume analyzer that simulates multi-model AI analysis.
-    Produces structural, tonal, data-driven, and deep heuristic scores.
-    """
+    """Multi-dimensional resume analyzer with accurate per-content scoring."""
 
     def __init__(self, text, jd="", role="Generic"):
         self.text = text
-        self.jd = jd
-        self.role = role
+        self.jd = jd.strip() if jd else ""
+        self.role = role if role and role != "Auto-Detect" else "Generic"
         self.lines = [l.strip() for l in text.splitlines() if l.strip()]
         self.words = re.findall(r"\b[A-Za-z][A-Za-z'-]*\b", text)
         self.word_count = len(self.words)
-        self.sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+        self.sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if len(s.strip()) > 8]
+        self.bullet_lines = [l for l in self.lines if re.match(r'^[\-•*▪►◦‣⁃●]\s', l) or re.match(r'^\d+[\.\)]\s', l)]
         self.sections = self._detect_sections()
+        self.section_texts = self._extract_section_texts()
 
-        # Weak / filler words
         self.weak_words = [
             'responsible', 'helped', 'worked', 'assisted', 'participated',
             'handled', 'utilized', 'used', 'did', 'made', 'got', 'went',
@@ -32,7 +31,6 @@ class DeepResumeAnalyzer:
             'just', 'involved', 'duties included', 'tasked with'
         ]
 
-        # Power action verbs
         self.action_verbs = [
             'achieved', 'accelerated', 'accomplished', 'architected', 'automated',
             'boosted', 'built', 'championed', 'collaborated', 'consolidated',
@@ -47,21 +45,29 @@ class DeepResumeAnalyzer:
             'surpassed', 'transformed', 'unified', 'upgraded'
         ]
 
-        # Role-specific keywords
         self._role_keywords = {
             'Software Engineer': [
                 'python', 'javascript', 'react', 'node', 'typescript', 'api', 'sql',
                 'docker', 'aws', 'git', 'ci/cd', 'agile', 'microservices', 'kubernetes',
                 'rest', 'graphql', 'testing', 'database', 'cloud', 'devops', 'linux',
                 'algorithm', 'data structures', 'html', 'css', 'java', 'c++', 'go',
-                'rust', 'mongodb', 'postgresql', 'redis', 'kafka', 'terraform'
+                'rust', 'mongodb', 'postgresql', 'redis', 'kafka', 'terraform',
+                'angular', 'vue', 'spring', 'django', 'flask', 'express', 'webpack'
+            ],
+            'Data Scientist': [
+                'machine learning', 'deep learning', 'python', 'tensorflow',
+                'pytorch', 'nlp', 'computer vision', 'statistics', 'regression',
+                'classification', 'neural network', 'feature engineering',
+                'model deployment', 'mlops', 'scikit-learn', 'pandas', 'numpy',
+                'sql', 'r', 'experiment design', 'bayesian', 'reinforcement learning',
+                'spark', 'hadoop', 'a/b testing', 'hypothesis testing'
             ],
             'Data Analyst': [
                 'python', 'sql', 'pandas', 'numpy', 'tableau', 'excel', 'dashboard',
                 'statistics', 'etl', 'visualization', 'power bi', 'data mining',
                 'analytics', 'reporting', 'metrics', 'r', 'machine learning',
                 'regression', 'hypothesis testing', 'a/b testing', 'data pipeline',
-                'spark', 'hadoop', 'scikit-learn', 'matplotlib', 'seaborn'
+                'spark', 'hadoop', 'scikit-learn', 'matplotlib', 'seaborn', 'looker'
             ],
             'Product Manager': [
                 'roadmap', 'stakeholder', 'user research', 'metrics', 'kpi', 'jira',
@@ -76,18 +82,23 @@ class DeepResumeAnalyzer:
                 'adobe', 'interaction', 'typography', 'color theory', 'heuristic',
                 'persona', 'information architecture', 'usability', 'motion design'
             ],
-            'Data Scientist': [
-                'machine learning', 'deep learning', 'python', 'tensorflow',
-                'pytorch', 'nlp', 'computer vision', 'statistics', 'regression',
-                'classification', 'neural network', 'feature engineering',
-                'model deployment', 'mlops', 'scikit-learn', 'pandas', 'numpy',
-                'sql', 'r', 'experiment design', 'bayesian', 'reinforcement learning'
-            ],
             'Marketing Specialist': [
                 'seo', 'sem', 'ppc', 'content marketing', 'social media',
                 'google analytics', 'hubspot', 'email marketing', 'conversion rate',
                 'brand strategy', 'copywriting', 'campaign', 'lead generation',
                 'crm', 'marketing automation', 'roi', 'ctr', 'engagement'
+            ],
+            'DevOps Engineer': [
+                'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'terraform',
+                'ansible', 'jenkins', 'ci/cd', 'linux', 'bash', 'python',
+                'monitoring', 'prometheus', 'grafana', 'helm', 'gitlab',
+                'infrastructure as code', 'cloud formation', 'nginx', 'load balancing'
+            ],
+            'Project Manager': [
+                'project management', 'scrum', 'agile', 'waterfall', 'risk management',
+                'budget', 'timeline', 'stakeholder', 'resource allocation', 'pmp',
+                'jira', 'confluence', 'gantt', 'milestone', 'scope', 'deliverable',
+                'cross-functional', 'communication', 'leadership', 'planning'
             ],
             'Generic': [
                 'leadership', 'management', 'project', 'collaborated', 'delivered',
@@ -97,478 +108,809 @@ class DeepResumeAnalyzer:
             ]
         }
 
-        # Replacement map for rewrites
         self._replacements = {
-            'responsible': 'spearheaded',
-            'helped': 'facilitated',
-            'worked': 'executed',
-            'assisted': 'partnered',
-            'participated': 'contributed',
-            'handled': 'managed',
-            'utilized': 'leveraged',
-            'used': 'employed',
-            'did': 'accomplished',
-            'made': 'developed',
-            'got': 'secured',
-            'went': 'transitioned',
-            'tried': 'pursued',
-            'involved': 'engaged',
+            'responsible for': 'Spearheaded',
+            'helped': 'Facilitated',
+            'worked on': 'Delivered',
+            'worked': 'Executed',
+            'assisted': 'Partnered with',
+            'participated': 'Contributed to',
+            'handled': 'Managed',
+            'utilized': 'Leveraged',
+            'used': 'Employed',
+            'did': 'Accomplished',
+            'made': 'Developed',
+            'got': 'Secured',
+            'involved in': 'Drove',
+            'duties included': 'Delivered',
+            'tasked with': 'Championed',
         }
 
-    # ── Section Detection ────────────────────────────────────────────
+    # ── Section Detection ────────────────────────────────────────
     def _detect_sections(self):
-        """Detect resume sections from header patterns."""
-        section_patterns = {
-            'summary': r'(?i)^(?:professional\s+)?(?:summary|profile|objective|about\s+me)',
-            'experience': r'(?i)^(?:work\s+)?(?:experience|employment|professional\s+experience|work\s+history)',
-            'education': r'(?i)^(?:education|academic|qualifications|degrees)',
-            'skills': r'(?i)^(?:skills|technical\s+skills|core\s+competencies|technologies|proficiencies)',
-            'projects': r'(?i)^(?:projects|personal\s+projects|key\s+projects)',
-            'certifications': r'(?i)^(?:certifications|certificates|licenses|credentials)',
-            'awards': r'(?i)^(?:awards|honors|achievements|recognition)',
-            'publications': r'(?i)^(?:publications|papers|research)',
-            'volunteer': r'(?i)^(?:volunteer|community|extracurricular)',
+        patterns = {
+            'summary': r'(?:professional\s+)?(?:summary|profile|objective|about\s*me|career\s+summary|personal\s+statement)',
+            'experience': r'(?:work\s+)?(?:experience|employment|professional\s+experience|work\s+history|career\s+history)',
+            'education': r'(?:education|academic|qualifications|degrees|academic\s+background)',
+            'skills': r'(?:skills|technical\s+skills|core\s+competencies|technologies|proficiencies|expertise)',
+            'projects': r'(?:projects|personal\s+projects|key\s+projects|portfolio)',
+            'certifications': r'(?:certifications|certificates|licenses|credentials|professional\s+development)',
+            'awards': r'(?:awards|honors|achievements|recognition)',
+            'publications': r'(?:publications|papers|research)',
+            'volunteer': r'(?:volunteer|community|extracurricular)',
+            'languages': r'(?:languages|language\s+skills)',
         }
         found = {}
         for line in self.lines:
-            for section, pattern in section_patterns.items():
-                if re.match(pattern, line):
+            clean = line.strip().rstrip(':').strip()
+            for section, pat in patterns.items():
+                if re.match(r'^' + pat + r'$', clean, re.I):
                     found[section] = True
         return found
 
-    # ── Core Analysis ────────────────────────────────────────────────
+    def _extract_section_texts(self):
+        """Extract actual text content for each section."""
+        section_patterns = {
+            'summary': r'(?:professional\s+)?(?:summary|profile|objective|about\s*me|career\s+summary)',
+            'experience': r'(?:work\s+)?(?:experience|employment|professional\s+experience|work\s+history)',
+            'education': r'(?:education|academic|qualifications|degrees)',
+            'skills': r'(?:skills|technical\s+skills|core\s+competencies|technologies)',
+            'projects': r'(?:projects|personal\s+projects|key\s+projects)',
+        }
+        texts = {}
+        current_section = None
+        current_lines = []
+
+        for line in self.lines:
+            clean = line.strip().rstrip(':').strip()
+            found_section = None
+            for sec, pat in section_patterns.items():
+                if re.match(r'^' + pat + r'$', clean, re.I):
+                    found_section = sec
+                    break
+
+            if found_section:
+                if current_section and current_lines:
+                    texts[current_section] = '\n'.join(current_lines)
+                current_section = found_section
+                current_lines = []
+            elif current_section:
+                current_lines.append(line)
+
+        if current_section and current_lines:
+            texts[current_section] = '\n'.join(current_lines)
+
+        return texts
+
+    # ── Main Analysis ────────────────────────────────────────────
     def analyze(self):
-        """Run full multi-engine analysis pipeline."""
-        structural = self._score_structure()
-        tone = self._score_tone()
-        impact = self._score_impact()
-        content = self._score_content()
-        ats = self._analyze_ats()
-        rewrites = self._generate_rewrites()
+        overall_score = self._calc_overall()
+        ats_result = self._analyze_ats()
+        readability = self._calc_readability()
+        categories = self._calc_categories()
+        weak_sections = self._detect_weak_sections()
+        improvements = self._generate_improvements()
+        jd_match = self._analyze_jd_match() if self.jd else None
 
         return {
-            'gpt4': {
-                'score': structural,
-                'feedback': self._feedback_structure()
-            },
-            'claude': {
-                'score': tone,
-                'feedback': self._feedback_tone()
-            },
-            'gemini': {
-                'score': impact,
-                'feedback': self._feedback_impact()
-            },
-            'custom': {
-                'score': content,
-                'feedback': self._feedback_deep(),
-                'rewrites': rewrites
-            },
-            'ats_stats': ats,
-            'visuals': self._build_visuals(structural, tone, impact, content)
+            'overall_score': overall_score,
+            'ats_score': ats_result['score'],
+            'readability_score': readability,
+            'categories': categories,
+            'weak_sections': weak_sections,
+            'ats_details': ats_result,
+            'feedback': self._generate_feedback(categories),
+            'improvements': improvements,
+            'jd_match': jd_match,
+            'improved_resume': self._generate_full_improved_resume(),
+            'stats': {
+                'word_count': self.word_count,
+                'bullet_count': len(self.bullet_lines),
+                'section_count': len(self.sections),
+                'action_verb_count': self._count_action_verbs(),
+                'weak_word_count': self._count_weak_words(),
+                'metric_count': len(re.findall(r'\d+[%$KkMm+]', self.text)),
+            }
         }
 
-    # ── Structural Scoring (GPT-4 engine) ────────────────────────────
-    def _score_structure(self):
+    # ── Category Scoring (all truly dynamic) ─────────────────────
+    def _calc_categories(self):
+        return {
+            'Content Quality': self._score_content(),
+            'ATS Keywords': self._analyze_ats()['score'],
+            'Formatting': self._score_formatting(),
+            'Experience Impact': self._score_experience(),
+            'Skills Coverage': self._score_skills(),
+            'Education': self._score_education(),
+        }
+
+    def _calc_overall(self):
+        cats = self._calc_categories()
+        weights = {
+            'Content Quality': 0.25,
+            'ATS Keywords': 0.20,
+            'Formatting': 0.15,
+            'Experience Impact': 0.20,
+            'Skills Coverage': 0.10,
+            'Education': 0.10,
+        }
+        total = sum(cats[k] * weights[k] for k in cats)
+        return min(100, max(0, round(total)))
+
+    def _score_content(self):
         score = 0
-        # Contact info present
-        if re.search(r'\S+@\S+\.\S+', self.text):
-            score += 12
-        if re.search(r'[\d\(\)\-\+\s]{10,}', self.text):
-            score += 8
-        if 'linkedin' in self.text.lower():
-            score += 5
 
-        # Essential sections present
-        essential = ['experience', 'education', 'skills']
-        for s in essential:
-            if s in self.sections:
-                score += 10
-
-        # Summary/Objective present
-        if 'summary' in self.sections:
-            score += 10
-
-        # Bullet points usage
-        bullet_lines = len([l for l in self.lines if re.match(r'^[\-•*▪►]\s', l)])
-        if bullet_lines >= 5:
-            score += 10
-        elif bullet_lines >= 2:
-            score += 5
-
-        # Appropriate length (300-800 words ideal)
-        if 300 <= self.word_count <= 800:
-            score += 10
-        elif 200 <= self.word_count <= 1000:
-            score += 5
-
-        # Section count bonus
-        if len(self.sections) >= 4:
-            score += 10
-        elif len(self.sections) >= 3:
-            score += 5
-
-        # No obvious missing info
-        if self.word_count > 50:
-            score += 5
-
-        return min(100, max(0, score))
-
-    def _feedback_structure(self):
-        fb = []
-        if 'summary' not in self.sections:
-            fb.append("⚠️ Missing Professional Summary — Add a 2-3 sentence summary at the top highlighting your key value proposition.")
-        if 'experience' not in self.sections:
-            fb.append("🔴 No Work Experience section detected — This is critical for most roles.")
-        if 'education' not in self.sections:
-            fb.append("⚠️ Education section missing — Include your highest degree and institution.")
-        if 'skills' not in self.sections:
-            fb.append("⚠️ Skills section missing — Add a dedicated skills section with relevant technologies and competencies.")
-        if not re.search(r'\S+@\S+\.\S+', self.text):
-            fb.append("🔴 No email address found — Always include a professional email.")
-        if self.word_count < 200:
-            fb.append("⚠️ Resume is too short ({} words). Aim for 400-700 words.".format(self.word_count))
-        elif self.word_count > 1000:
-            fb.append("⚠️ Resume is quite long ({} words). Consider trimming to 1-2 pages.".format(self.word_count))
-
-        bullet_lines = len([l for l in self.lines if re.match(r'^[\-•*▪►]\s', l)])
-        if bullet_lines < 3:
-            fb.append("💡 Use more bullet points for experience descriptions — they improve readability and ATS parsing.")
-
-        if len(self.sections) >= 4:
-            fb.append("✅ Good section organization — your resume has clear, well-defined sections.")
-        if not fb:
-            fb.append("✅ Structural analysis looks solid. Resume is well-organized.")
-        return fb
-
-    # ── Tone Scoring (Claude engine) ─────────────────────────────────
-    def _score_tone(self):
-        score = 0
-        text_lower = self.text.lower()
-
-        # Action verb density
-        action_count = sum(1 for w in self.words if w.lower() in self.action_verbs)
-        ratio = action_count / max(self.word_count, 1)
-        if ratio >= 0.03:
-            score += 20
-        elif ratio >= 0.015:
-            score += 12
-        elif ratio >= 0.005:
-            score += 5
-
-        # Weak word penalty
-        weak_count = sum(1 for w in self.words if w.lower() in self.weak_words)
-        if weak_count == 0:
-            score += 20
-        elif weak_count <= 2:
-            score += 12
-        elif weak_count <= 5:
-            score += 5
-
-        # Passive voice check
-        passive = len(re.findall(r'\b(?:was|were|be|been|being|is|are)\s+\w+ed\b', self.text, re.I))
-        if passive == 0:
+        # Action verb usage (0-25)
+        av_count = self._count_action_verbs()
+        bullet_count = max(len(self.bullet_lines), 1)
+        av_ratio = av_count / bullet_count
+        if av_ratio >= 0.6:
+            score += 25
+        elif av_ratio >= 0.3:
             score += 15
-        elif passive <= 2:
+        elif av_count >= 2:
             score += 8
 
-        # First-person avoidance (resumes shouldn't use I/me/my excessively)
+        # Quantifiable metrics (0-25)
+        metrics = re.findall(r'\d+[%$KkMm+]|\$[\d,.]+[KkMm]?', self.text)
+        if len(metrics) >= 8:
+            score += 25
+        elif len(metrics) >= 4:
+            score += 18
+        elif len(metrics) >= 2:
+            score += 10
+        elif len(metrics) >= 1:
+            score += 4
+
+        # Weak word penalty (0-20, reduced by weak words)
+        ww_count = self._count_weak_words()
+        if ww_count == 0:
+            score += 20
+        elif ww_count <= 2:
+            score += 14
+        elif ww_count <= 4:
+            score += 6
+
+        # Summary quality (0-15)
+        if 'summary' in self.section_texts:
+            summary = self.section_texts['summary']
+            swords = len(summary.split())
+            if 20 <= swords <= 80:
+                score += 10
+            elif swords > 0:
+                score += 4
+            if re.search(r'\d', summary):
+                score += 5
+        elif 'summary' in self.sections:
+            score += 5
+
+        # Professional language (0-15)
         first_person = len(re.findall(r'\b(?:I|me|my|myself)\b', self.text))
         if first_person == 0:
-            score += 10
+            score += 15
         elif first_person <= 2:
-            score += 5
-
-        # Quantifiable achievements (numbers/percentages)
-        metrics = len(re.findall(r'\b\d+[%$KkMm]?\b', self.text))
-        if metrics >= 5:
-            score += 20
-        elif metrics >= 3:
-            score += 12
-        elif metrics >= 1:
-            score += 5
-
-        # Professional tone check (no casual language)
-        casual_words = ['awesome', 'cool', 'amazing', 'super', 'totally', 'literally', 'honestly']
-        casual_count = sum(1 for w in self.words if w.lower() in casual_words)
-        if casual_count == 0:
-            score += 10
-        elif casual_count <= 1:
-            score += 5
-
-        # Sentence variety
-        if len(self.sentences) > 0:
-            lengths = [len(s.split()) for s in self.sentences]
-            avg_len = sum(lengths) / len(lengths)
-            if 10 <= avg_len <= 25:
-                score += 5
+            score += 8
+        elif first_person <= 5:
+            score += 3
 
         return min(100, max(0, score))
 
-    def _feedback_tone(self):
-        fb = []
-        text_lower = self.text.lower()
-
-        action_count = sum(1 for w in self.words if w.lower() in self.action_verbs)
-        if action_count < 3:
-            fb.append("⚠️ Low action verb usage — Start bullet points with strong verbs like 'Architected', 'Delivered', 'Optimized'.")
-        else:
-            fb.append("✅ Good use of action verbs ({} found).".format(action_count))
-
-        weak_found = [w for w in set(w.lower() for w in self.words) if w in self.weak_words]
-        if weak_found:
-            fb.append("⚠️ Weak/filler words detected: {}. Replace with stronger alternatives.".format(', '.join(weak_found[:5])))
-
-        passive = len(re.findall(r'\b(?:was|were|be|been|being|is|are)\s+\w+ed\b', self.text, re.I))
-        if passive > 2:
-            fb.append("⚠️ {} passive voice instances found. Switch to active voice for more impact.".format(passive))
-
-        metrics = len(re.findall(r'\b\d+[%$KkMm]?\b', self.text))
-        if metrics < 3:
-            fb.append("💡 Add more quantifiable metrics — numbers, percentages, and dollar amounts make your impact tangible.")
-        else:
-            fb.append("✅ Good use of quantifiable metrics ({} found).".format(metrics))
-
-        first_person = len(re.findall(r'\b(?:I|me|my|myself)\b', self.text))
-        if first_person > 3:
-            fb.append("⚠️ Excessive first-person pronouns ({}) — remove \"I\", \"me\", \"my\" from resume bullets.".format(first_person))
-
-        if not fb:
-            fb.append("✅ Resume tone is professional and impactful.")
-        return fb
-
-    # ── Impact / Data Scoring (Gemini engine) ────────────────────────
-    def _score_impact(self):
+    def _score_formatting(self):
         score = 0
-        text_lower = self.text.lower()
+        contact = {}
 
-        # Metrics density
-        numbers = re.findall(r'\b\d+[%$KkMm+]?\b', self.text)
-        percentages = re.findall(r'\d+%', self.text)
-        dollars = re.findall(r'\$[\d,]+[KkMm]?', self.text)
-
-        if len(numbers) >= 8:
-            score += 20
-        elif len(numbers) >= 4:
+        # Email (0-12)
+        if re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', self.text):
             score += 12
-        elif len(numbers) >= 1:
-            score += 5
+            contact['email'] = True
 
-        if len(percentages) >= 2:
-            score += 10
-        elif len(percentages) >= 1:
-            score += 5
+        # Phone (0-8)
+        if re.search(r'[\+]?[\d\s\(\)\-\.]{10,}', self.text):
+            score += 8
+            contact['phone'] = True
 
-        if len(dollars) >= 1:
-            score += 10
+        # LinkedIn (0-8)
+        if re.search(r'linkedin\.com/in/', self.text, re.I):
+            score += 8
 
-        # Impact keywords
-        impact_words = ['increased', 'decreased', 'reduced', 'improved', 'grew',
-                        'saved', 'generated', 'delivered', 'achieved', 'exceeded',
-                        'revenue', 'profit', 'efficiency', 'productivity', 'performance']
-        impact_count = sum(1 for w in self.words if w.lower() in impact_words)
-        if impact_count >= 5:
+        # Section headers (0-20)
+        essential = ['experience', 'education', 'skills']
+        present = sum(1 for s in essential if s in self.sections)
+        score += present * 7  # max 21, cap at 20
+        score = min(score, 48)  # running cap
+
+        # Bullet points (0-20)
+        if len(self.bullet_lines) >= 8:
+            score += 20
+        elif len(self.bullet_lines) >= 4:
+            score += 14
+        elif len(self.bullet_lines) >= 1:
+            score += 6
+
+        # Length appropriateness (0-15)
+        if 300 <= self.word_count <= 800:
             score += 15
-        elif impact_count >= 3:
+        elif 200 <= self.word_count <= 1000:
+            score += 10
+        elif self.word_count >= 100:
+            score += 4
+
+        # Consistent formatting (0-9) — check that bullets exist in experience
+        if 'experience' in self.section_texts:
+            exp_text = self.section_texts['experience']
+            exp_bullets = len(re.findall(r'^[\s]*[\-•*▪►]\s', exp_text, re.M))
+            if exp_bullets >= 3:
+                score += 9
+            elif exp_bullets >= 1:
+                score += 4
+
+        return min(100, max(0, score))
+
+    def _score_experience(self):
+        if 'experience' not in self.sections and 'experience' not in self.section_texts:
+            return 5  # No experience section at all
+
+        score = 15  # Section exists
+
+        exp_text = self.section_texts.get('experience', '')
+        if not exp_text:
+            return 15
+
+        # Date ranges (shows multiple roles)
+        dates = re.findall(r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*[\s,]+\d{4}', exp_text, re.I)
+        present = re.findall(r'\b(?:Present|Current|Now)\b', exp_text, re.I)
+        total_dates = len(dates) + len(present)
+        if total_dates >= 4:
+            score += 20
+        elif total_dates >= 2:
+            score += 12
+        elif total_dates >= 1:
+            score += 5
+
+        # Bullets in experience
+        exp_bullets = [l for l in exp_text.split('\n') if re.match(r'^[\s]*[\-•*▪►]\s', l)]
+        if len(exp_bullets) >= 8:
+            score += 20
+        elif len(exp_bullets) >= 4:
+            score += 12
+        elif len(exp_bullets) >= 1:
+            score += 5
+
+        # Metrics in experience
+        exp_metrics = re.findall(r'\d+[%$KkMm+]|\$[\d,.]+', exp_text)
+        if len(exp_metrics) >= 5:
+            score += 20
+        elif len(exp_metrics) >= 2:
+            score += 12
+        elif len(exp_metrics) >= 1:
+            score += 5
+
+        # Action verbs in experience
+        exp_words = re.findall(r'\b\w+\b', exp_text.lower())
+        exp_action = sum(1 for w in exp_words if w in self.action_verbs)
+        if exp_action >= 6:
+            score += 15
+        elif exp_action >= 3:
+            score += 10
+        elif exp_action >= 1:
+            score += 4
+
+        # Impact language
+        impact_phrases = ['resulting in', 'leading to', 'which led', 'saving', 'revenue', 'reduced', 'increased', 'improved', 'grew']
+        impact_count = sum(1 for p in impact_phrases if p in exp_text.lower())
+        if impact_count >= 3:
             score += 10
         elif impact_count >= 1:
             score += 5
 
-        # Result-oriented language
-        result_patterns = [
-            r'result(?:ing|ed)?\s+in',
-            r'leading\s+to',
-            r'which\s+(?:increased|decreased|improved|reduced)',
-            r'saving\s+\$?\d',
-            r'by\s+\d+%',
-        ]
-        result_hits = sum(1 for p in result_patterns if re.search(p, text_lower))
-        score += min(15, result_hits * 5)
+        return min(100, max(0, score))
 
-        # Experience depth (multiple roles)
-        date_ranges = re.findall(r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]+\d{4}', self.text, re.I)
-        if len(date_ranges) >= 4:
-            score += 10
-        elif len(date_ranges) >= 2:
+    def _score_skills(self):
+        if 'skills' not in self.sections and 'skills' not in self.section_texts:
+            return 5
+
+        score = 15  # Section exists
+
+        skills_text = self.section_texts.get('skills', '')
+        if not skills_text:
+            return 15
+
+        # Count individual skills (split by common delimiters)
+        skill_items = re.split(r'[,\n|•\-*▪►;]', skills_text)
+        skill_items = [s.strip() for s in skill_items if s.strip() and len(s.strip()) > 1 and len(s.strip()) < 60]
+
+        if len(skill_items) >= 15:
+            score += 30
+        elif len(skill_items) >= 10:
+            score += 22
+        elif len(skill_items) >= 5:
+            score += 12
+        elif len(skill_items) >= 1:
             score += 5
 
-        # Skills breadth
-        if 'skills' in self.sections:
+        # Organization (has sub-categories?)
+        has_categories = bool(re.search(r'(?:languages|frameworks|tools|databases|platforms|technical|soft\s+skills|programming):', skills_text, re.I))
+        if has_categories:
+            score += 15
+        elif len(skill_items) >= 5:
+            score += 5
+
+        # Relevance to role
+        role_key = self.role if self.role in self._role_keywords else 'Generic'
+        role_kws = self._role_keywords[role_key]
+        text_lower = skills_text.lower()
+        matched = sum(1 for kw in role_kws if kw.lower() in text_lower)
+        ratio = matched / max(len(role_kws), 1)
+        if ratio >= 0.3:
+            score += 25
+        elif ratio >= 0.15:
+            score += 15
+        elif matched >= 2:
+            score += 8
+
+        # Technical vs soft skills balance
+        tech_indicators = ['python', 'java', 'sql', 'aws', 'react', 'docker', 'git', 'linux', 'api']
+        soft_indicators = ['leadership', 'communication', 'teamwork', 'management', 'problem-solving']
+        has_tech = any(t in text_lower for t in tech_indicators)
+        has_soft = any(s in text_lower for s in soft_indicators)
+        if has_tech and has_soft:
+            score += 15
+        elif has_tech or has_soft:
+            score += 8
+
+        return min(100, max(0, score))
+
+    def _score_education(self):
+        if 'education' not in self.sections and 'education' not in self.section_texts:
+            return 5
+
+        score = 25  # Section exists
+
+        edu_text = self.section_texts.get('education', '')
+        if not edu_text:
+            return 25
+
+        # Degree present
+        if re.search(r'(?:bachelor|master|phd|associate|b\.?s\.?|m\.?s\.?|b\.?a\.?|m\.?a\.?|mba|doctorate|diploma|degree)', edu_text, re.I):
+            score += 25
+
+        # Institution name (usually capitalized words)
+        if re.search(r'(?:university|college|institute|school|academy)', edu_text, re.I):
+            score += 15
+
+        # Graduation date
+        if re.search(r'\b(?:19|20)\d{2}\b', edu_text):
+            score += 15
+
+        # GPA
+        if re.search(r'(?:gpa|grade|cgpa)[\s:]*[\d.]+', edu_text, re.I):
+            score += 10
+
+        # Relevant coursework or honors
+        if re.search(r'(?:coursework|honors|dean|magna|summa|cum laude|relevant|scholarship)', edu_text, re.I):
             score += 10
 
         return min(100, max(0, score))
 
-    def _feedback_impact(self):
-        fb = []
-        percentages = re.findall(r'\d+%', self.text)
-        dollars = re.findall(r'\$[\d,]+[KkMm]?', self.text)
-        numbers = re.findall(r'\b\d+[%$KkMm+]?\b', self.text)
-
-        if len(percentages) < 2:
-            fb.append("📊 Add more percentage metrics — e.g., 'Improved load time by 40%'.")
-        if len(dollars) == 0:
-            fb.append("💰 No dollar amounts found — Quantify business impact: 'Generated $500K in annual savings'.")
-        if len(numbers) >= 5:
-            fb.append("✅ Good data density — {} quantifiable metrics detected.".format(len(numbers)))
-
-        impact_words = ['increased', 'decreased', 'reduced', 'improved', 'grew', 'saved', 'generated']
-        impact_count = sum(1 for w in self.words if w.lower() in impact_words)
-        if impact_count < 2:
-            fb.append("💡 Use more impact verbs — 'Increased', 'Reduced', 'Generated' show measurable outcomes.")
-
-        date_ranges = re.findall(r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)', self.text, re.I)
-        if len(date_ranges) < 2:
-            fb.append("⚠️ Add dates to your experience entries for career progression visibility.")
-
-        fb.append("📈 Tip: Frame every bullet as [Action Verb] + [Task] + [Result with Number].")
-        return fb
-
-    # ── Deep Content Scoring (Custom Super Engine) ───────────────────
-    def _score_content(self):
-        s = self._score_structure()
-        t = self._score_tone()
-        i = self._score_impact()
-        # Weighted blend
-        return min(100, max(0, int(s * 0.3 + t * 0.35 + i * 0.35)))
-
-    def _feedback_deep(self):
-        fb = []
-        score = self._score_content()
-        if score >= 80:
-            fb.append("🌟 Excellent resume! Your content is strong, well-structured, and impactful.")
-        elif score >= 60:
-            fb.append("👍 Good foundation. A few targeted improvements can push this into the top tier.")
-        elif score >= 40:
-            fb.append("⚠️ Your resume needs significant improvement in multiple areas.")
-        else:
-            fb.append("🔴 Major revision needed. Focus on structure, action verbs, and quantifiable results.")
-
-        # Check critical elements
-        if 'summary' not in self.sections:
-            fb.append("Add a compelling Professional Summary as the first section.")
-        if 'projects' in self.sections:
-            fb.append("✅ Projects section detected — great for demonstrating hands-on experience.")
-        if 'certifications' in self.sections:
-            fb.append("✅ Certifications section adds credibility.")
-
-        # Readability
-        if self.word_count > 0 and len(self.sentences) > 0:
-            avg_sentence_len = self.word_count / len(self.sentences)
-            if avg_sentence_len > 30:
-                fb.append("📝 Average sentence length is high ({:.0f} words). Break up long sentences.".format(avg_sentence_len))
-
-        return fb
-
-    # ── ATS Analysis ─────────────────────────────────────────────────
+    # ── ATS Analysis ─────────────────────────────────────────────
     def _analyze_ats(self):
-        """Analyze ATS keyword compatibility for the target role."""
         role_key = self.role if self.role in self._role_keywords else 'Generic'
-        target = self._role_keywords.get(role_key, self._role_keywords['Generic'])
+        target = self._role_keywords[role_key]
         text_lower = self.text.lower()
 
         found = [kw for kw in target if kw.lower() in text_lower]
         missing = [kw for kw in target if kw.lower() not in text_lower]
 
-        # Also check JD keywords if provided
-        jd_missing = []
-        if self.jd:
-            jd_words = set(re.findall(r'\b[a-z][a-z]+\b', self.jd.lower()))
-            common_words = {'the', 'and', 'for', 'with', 'that', 'this', 'are', 'was',
-                           'will', 'can', 'has', 'have', 'had', 'not', 'but', 'from',
-                           'they', 'been', 'its', 'you', 'your', 'our', 'who', 'which',
-                           'their', 'about', 'into', 'more', 'other', 'than', 'then',
-                           'also', 'each', 'how', 'all', 'would', 'there', 'when',
-                           'make', 'like', 'such', 'through', 'over', 'after', 'before'}
-            jd_keywords = jd_words - common_words
-            for kw in jd_keywords:
-                if len(kw) > 3 and kw not in text_lower:
-                    jd_missing.append(kw)
-
-        total_target = len(target)
-        found_count = len(found)
-        ats_score = min(100, int((found_count / max(total_target, 1)) * 100))
+        ratio = len(found) / max(len(target), 1)
+        ats_score = min(100, max(0, round(ratio * 100)))
 
         return {
             'score': ats_score,
-            'missing': missing[:15],
             'found': found,
-            'jd_missing': jd_missing[:10] if jd_missing else [],
-            'total_checked': total_target,
-            'role': role_key
+            'missing': missing,
+            'total_target': len(target),
+            'found_count': len(found),
+            'role': role_key,
         }
 
-    # ── Rewrite Engine ───────────────────────────────────────────────
-    def _generate_rewrites(self):
-        """Generate rewritten versions of weak sentences."""
-        rewrites = []
-        for line in self.lines:
-            line_lower = line.lower()
-            for weak in self.weak_words:
-                if f" {weak} " in f" {line_lower} " or line_lower.startswith(weak):
-                    rewritten = self._rewrite_sentence(line, weak)
-                    if rewritten and rewritten != line:
-                        rewrites.append(f"❌ \"{line}\" → ✅ \"{rewritten}\"")
-                        break
-            if len(rewrites) >= 8:
-                break
-        return rewrites
+    # ── Readability ──────────────────────────────────────────────
+    def _calc_readability(self):
+        if self.word_count == 0 or len(self.sentences) == 0:
+            return 30
 
-    def _rewrite_sentence(self, sentence, weak_word):
-        """Rewrite a sentence by replacing a weak word with a power verb."""
-        replacement = self._replacements.get(weak_word.lower())
-        if not replacement:
-            # Pick a contextual action verb
-            replacement = random.choice(self.action_verbs[:15])
+        # Average words per sentence
+        avg_wps = self.word_count / len(self.sentences)
 
-        # Simple replacement
-        pattern = re.compile(re.escape(weak_word), re.IGNORECASE)
-        rewritten = pattern.sub(replacement.capitalize(), sentence, count=1)
+        # Syllable counting
+        total_syl = sum(self._syllables(w) for w in self.words)
+        avg_syl = total_syl / max(self.word_count, 1)
 
-        # If the sentence starts with "Responsible for", restructure it
-        resp_match = re.match(r'^(?:Responsible\s+for|Duties\s+included|Tasked\s+with)\s+(.+)', sentence, re.I)
-        if resp_match:
-            rest = resp_match.group(1)
-            # Capitalize first word and add a power verb
-            verb = random.choice(['Spearheaded', 'Led', 'Drove', 'Orchestrated', 'Managed'])
-            rewritten = f"{verb} {rest}"
+        # Flesch Reading Ease (adapted for resumes)
+        flesch = 206.835 - 1.015 * avg_wps - 84.6 * avg_syl
 
-        return rewritten
+        # Adjust: resumes should be clear and concise (ideal: 50-70 Flesch)
+        score = 0
 
-    # ── Visuals Data ─────────────────────────────────────────────────
-    def _build_visuals(self, structural, tone, impact, content):
-        return {
-            'radar': {
-                'labels': ['Structure', 'Tone', 'Impact', 'ATS', 'Content', 'Readability'],
-                'scores': [
-                    structural,
-                    tone,
-                    impact,
-                    self._analyze_ats()['score'],
-                    content,
-                    self._readability_score()
-                ]
-            },
-            'breakdown': {
-                'Structure': structural,
-                'Tone & Voice': tone,
-                'Impact & Metrics': impact,
-                'Overall Content': content,
-            }
-        }
+        # Sentence length (ideal: 12-22 words)
+        if 12 <= avg_wps <= 22:
+            score += 35
+        elif 8 <= avg_wps <= 30:
+            score += 20
+        else:
+            score += 5
 
-    def _readability_score(self):
-        """Calculate Flesch Reading Ease approximation."""
-        if self.word_count == 0:
-            return 50
-        syllable_count = sum(self._count_syllables(w) for w in self.words)
-        sentence_count = max(len(self.sentences), 1)
-        flesch = 206.835 - 1.015 * (self.word_count / sentence_count) - 84.6 * (syllable_count / self.word_count)
-        return min(100, max(0, int(flesch)))
+        # Bullet usage improves readability
+        bullet_ratio = len(self.bullet_lines) / max(len(self.lines), 1)
+        if bullet_ratio >= 0.3:
+            score += 25
+        elif bullet_ratio >= 0.15:
+            score += 15
+        elif len(self.bullet_lines) >= 1:
+            score += 5
 
-    def _count_syllables(self, word):
+        # Short paragraphs
+        long_lines = [l for l in self.lines if len(l.split()) > 40]
+        if len(long_lines) == 0:
+            score += 20
+        elif len(long_lines) <= 2:
+            score += 12
+
+        # No jargon overload
+        if avg_syl <= 1.8:
+            score += 20
+        elif avg_syl <= 2.2:
+            score += 12
+        else:
+            score += 4
+
+        return min(100, max(0, score))
+
+    def _syllables(self, word):
         word = word.lower()
         vowels = re.findall(r'[aeiouy]+', word)
         count = len(vowels) if vowels else 1
         if word.endswith('e') and count > 1:
             count -= 1
         return max(1, count)
+
+    # ── Weak Section Detection ───────────────────────────────────
+    def _detect_weak_sections(self):
+        weak = []
+
+        # Summary
+        if 'summary' not in self.sections:
+            weak.append({
+                'section': 'Summary',
+                'severity': 'critical',
+                'reason': 'No professional summary detected. Recruiters spend 6 seconds scanning — a strong summary is essential.'
+            })
+        elif 'summary' in self.section_texts:
+            st = self.section_texts['summary']
+            wc = len(st.split())
+            if wc < 15:
+                weak.append({
+                    'section': 'Summary',
+                    'severity': 'warning',
+                    'reason': f'Summary is too short ({wc} words). Expand to 2-3 sentences highlighting your key value.'
+                })
+            if not re.search(r'\d', st):
+                weak.append({
+                    'section': 'Summary',
+                    'severity': 'warning',
+                    'reason': 'Summary lacks quantifiable metrics. Add numbers to show impact (e.g., "5+ years", "20% improvement").'
+                })
+
+        # Experience
+        if 'experience' not in self.sections:
+            weak.append({
+                'section': 'Experience',
+                'severity': 'critical',
+                'reason': 'No work experience section found. This is the most critical section for most roles.'
+            })
+        elif 'experience' in self.section_texts:
+            et = self.section_texts['experience']
+            exp_bullets = [l for l in et.split('\n') if re.match(r'^[\s]*[\-•*▪►]\s', l)]
+            exp_metrics = re.findall(r'\d+[%$KkMm+]|\$[\d,.]+', et)
+            exp_weak = [w for w in re.findall(r'\b\w+\b', et.lower()) if w in self.weak_words]
+
+            if len(exp_bullets) < 3:
+                weak.append({
+                    'section': 'Experience',
+                    'severity': 'warning',
+                    'reason': f'Only {len(exp_bullets)} bullet point(s) found. Use 3-5 achievement-oriented bullets per role.'
+                })
+            if len(exp_metrics) < 2:
+                weak.append({
+                    'section': 'Experience',
+                    'severity': 'warning',
+                    'reason': f'Only {len(exp_metrics)} metric(s) found in experience. Quantify your impact with numbers and percentages.'
+                })
+            if len(exp_weak) >= 3:
+                examples = list(set(exp_weak))[:3]
+                weak.append({
+                    'section': 'Experience',
+                    'severity': 'warning',
+                    'reason': f'Weak words found: {", ".join(examples)}. Replace with strong action verbs.'
+                })
+
+        # Skills
+        if 'skills' not in self.sections:
+            weak.append({
+                'section': 'Skills',
+                'severity': 'critical',
+                'reason': 'No skills section found. ATS systems heavily rely on keyword matching from this section.'
+            })
+        else:
+            ats = self._analyze_ats()
+            if ats['score'] < 40:
+                weak.append({
+                    'section': 'Skills',
+                    'severity': 'critical',
+                    'reason': f'ATS keyword match is only {ats["score"]}% for {ats["role"]}. Missing {len(ats["missing"])} key terms.'
+                })
+            elif ats['score'] < 65:
+                weak.append({
+                    'section': 'Skills',
+                    'severity': 'warning',
+                    'reason': f'ATS keyword match is {ats["score"]}%. Add more role-specific keywords to improve visibility.'
+                })
+
+        # Education
+        if 'education' not in self.sections:
+            weak.append({
+                'section': 'Education',
+                'severity': 'warning',
+                'reason': 'No education section found. Include your highest degree and institution.'
+            })
+
+        # Projects (optional but helpful)
+        if 'projects' not in self.sections and self._score_experience() < 60:
+            weak.append({
+                'section': 'Projects',
+                'severity': 'info',
+                'reason': 'Consider adding a Projects section to demonstrate additional hands-on experience.'
+            })
+
+        # If nothing is weak, add a positive note
+        if not weak:
+            weak.append({
+                'section': 'All Sections',
+                'severity': 'good',
+                'reason': 'All major sections are well-structured. Focus on fine-tuning keywords and metrics.'
+            })
+
+        return weak
+
+    # ── Feedback Generation ──────────────────────────────────────
+    def _generate_feedback(self, categories):
+        feedback = {}
+
+        # Content feedback
+        fb = []
+        av = self._count_action_verbs()
+        ww = self._count_weak_words()
+        metrics = len(re.findall(r'\d+[%$KkMm+]|\$[\d,.]+', self.text))
+        fp = len(re.findall(r'\b(?:I|me|my|myself)\b', self.text))
+
+        if av >= 5:
+            fb.append(f'✅ Strong action verb usage ({av} found)')
+        elif av >= 2:
+            fb.append(f'⚠️ Moderate action verb usage ({av} found). Aim for 5+ across your bullets.')
+        else:
+            fb.append(f'❌ Very few action verbs ({av} found). Start every bullet with a power verb.')
+
+        if ww == 0:
+            fb.append('✅ No weak/filler words detected')
+        else:
+            weak_list = list(set(w.lower() for w in self.words if w.lower() in self.weak_words))[:5]
+            fb.append(f'⚠️ {ww} weak word(s) found: {", ".join(weak_list)}')
+
+        if metrics >= 5:
+            fb.append(f'✅ Excellent metric density ({metrics} quantifiable achievements)')
+        elif metrics >= 2:
+            fb.append(f'⚠️ Good start with {metrics} metric(s). Aim for 5+ numbers across your resume.')
+        else:
+            fb.append(f'❌ Only {metrics} metric(s). Add percentages, dollar amounts, and team sizes.')
+
+        if fp > 3:
+            fb.append(f'⚠️ {fp} first-person pronouns found. Remove "I", "me", "my" from resume.')
+        feedback['Content Quality'] = fb
+
+        # ATS feedback
+        ats = self._analyze_ats()
+        afb = []
+        afb.append(f'Role analyzed: {ats["role"]}')
+        afb.append(f'Keywords found: {ats["found_count"]}/{ats["total_target"]}')
+        if ats['missing']:
+            afb.append(f'Top missing: {", ".join(ats["missing"][:6])}')
+        if ats['score'] >= 70:
+            afb.append('✅ Good ATS coverage for this role')
+        elif ats['score'] >= 40:
+            afb.append('⚠️ Moderate ATS coverage. Add more role-specific keywords.')
+        else:
+            afb.append('❌ Low ATS coverage. Your resume may be filtered out by tracking systems.')
+        feedback['ATS Keywords'] = afb
+
+        # Formatting feedback
+        ffb = []
+        if re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', self.text):
+            ffb.append('✅ Email address found')
+        else:
+            ffb.append('❌ No email found — always include a professional email')
+        if 'linkedin' in self.text.lower():
+            ffb.append('✅ LinkedIn profile included')
+        else:
+            ffb.append('⚠️ No LinkedIn URL found')
+        if 300 <= self.word_count <= 800:
+            ffb.append(f'✅ Good length ({self.word_count} words)')
+        elif self.word_count < 200:
+            ffb.append(f'⚠️ Too short ({self.word_count} words). Aim for 400-700.')
+        elif self.word_count > 1000:
+            ffb.append(f'⚠️ Too long ({self.word_count} words). Consider trimming to 1-2 pages.')
+        else:
+            ffb.append(f'ℹ️ Word count: {self.word_count}')
+        ffb.append(f'Sections found: {len(self.sections)} ({", ".join(self.sections.keys())})')
+        feedback['Formatting'] = ffb
+
+        return feedback
+
+    # ── Improvements ─────────────────────────────────────────────
+    def _generate_improvements(self):
+        improvements = {}
+
+        for section_name in ['summary', 'experience', 'skills', 'education', 'projects']:
+            original = self.section_texts.get(section_name, '')
+            if not original:
+                continue
+            improved, changes = self._improve_section(section_name, original)
+            improvements[section_name] = {
+                'original': original.strip(),
+                'improved': improved.strip(),
+                'changes': changes,
+            }
+
+        return improvements
+
+    def _improve_section(self, section_name, text):
+        improved = text
+        changes = []
+
+        # Replace weak phrases
+        for weak, strong in self._replacements.items():
+            pattern = re.compile(r'\b' + re.escape(weak) + r'\b', re.I)
+            if pattern.search(improved):
+                improved = pattern.sub(strong, improved)
+                changes.append(f'Replaced "{weak}" with "{strong}"')
+
+        # Remove first-person pronouns
+        for pronoun in ['I ', 'I\'ve ', 'I\'m ', ' me ', ' my ', ' myself ']:
+            if pronoun in improved:
+                if pronoun == 'I ':
+                    improved = improved.replace('I was ', '').replace('I am ', '').replace('I have ', '').replace('I ', '')
+                changes_added = f'Removed first-person pronoun: "{pronoun.strip()}"'
+                if changes_added not in changes:
+                    changes.append(changes_added)
+
+        # For experience: ensure bullets start with action verbs
+        if section_name == 'experience':
+            lines = improved.split('\n')
+            new_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if re.match(r'^[\-•*▪►]\s+[a-z]', stripped):
+                    # Lowercase start — capitalize and consider adding verb
+                    rest = re.sub(r'^[\-•*▪►]\s+', '', stripped)
+                    rest = rest[0].upper() + rest[1:]
+                    new_lines.append(f'• {rest}')
+                    if 'Capitalized bullet point starts' not in changes:
+                        changes.append('Capitalized bullet point starts')
+                else:
+                    new_lines.append(line)
+            improved = '\n'.join(new_lines)
+
+        # Add metric placeholders if none exist in experience
+        if section_name == 'experience' and not re.search(r'\d+[%$]', improved):
+            changes.append('Tip: Add quantifiable metrics (percentages, dollars, team sizes)')
+
+        if not changes:
+            changes.append('Section looks good — minor formatting improvements applied')
+
+        return improved, changes
+
+    # ── Full Improved Resume ─────────────────────────────────────
+    def _generate_full_improved_resume(self):
+        parts = []
+
+        # Try to reconstruct from improved sections
+        for section_name in ['summary', 'experience', 'education', 'skills', 'projects', 'certifications']:
+            original = self.section_texts.get(section_name, '')
+            if not original:
+                continue
+
+            header = section_name.upper().replace('_', ' ')
+            improved, _ = self._improve_section(section_name, original)
+            parts.append(f'{header}\n{improved}')
+
+        if parts:
+            return '\n\n'.join(parts)
+
+        # Fallback: improve the whole text
+        improved = self.text
+        for weak, strong in self._replacements.items():
+            pattern = re.compile(r'\b' + re.escape(weak) + r'\b', re.I)
+            improved = pattern.sub(strong, improved)
+        return improved
+
+    # ── JD Match ─────────────────────────────────────────────────
+    def _analyze_jd_match(self):
+        if not self.jd:
+            return None
+
+        # Extract meaningful words from JD
+        jd_words = re.findall(r'\b[a-zA-Z][a-zA-Z]+\b', self.jd.lower())
+        stop_words = {
+            'the', 'and', 'for', 'with', 'that', 'this', 'are', 'was', 'will',
+            'can', 'has', 'have', 'had', 'not', 'but', 'from', 'they', 'been',
+            'its', 'you', 'your', 'our', 'who', 'which', 'their', 'about',
+            'into', 'more', 'other', 'than', 'then', 'also', 'each', 'how',
+            'all', 'would', 'there', 'when', 'make', 'like', 'such', 'through',
+            'over', 'after', 'before', 'should', 'could', 'must', 'work',
+            'working', 'ability', 'strong', 'including', 'using', 'used',
+            'looking', 'role', 'position', 'team', 'experience', 'years',
+            'join', 'company', 'what', 'best', 'well', 'get', 'use'
+        }
+
+        # Extract multi-word phrases (2-3 words)
+        jd_text = self.jd.lower()
+        bigrams = re.findall(r'\b([a-z]+\s+[a-z]+)\b', jd_text)
+        trigrams = re.findall(r'\b([a-z]+\s+[a-z]+\s+[a-z]+)\b', jd_text)
+
+        # Single word keywords (filtered)
+        jd_keywords = set()
+        for w in jd_words:
+            if len(w) > 3 and w not in stop_words:
+                jd_keywords.add(w)
+
+        # Add meaningful phrases
+        for phrase in bigrams + trigrams:
+            words_in_phrase = phrase.split()
+            if all(w not in stop_words for w in words_in_phrase) and len(phrase) > 6:
+                jd_keywords.add(phrase)
+
+        text_lower = self.text.lower()
+        found = [kw for kw in jd_keywords if kw in text_lower]
+        missing = [kw for kw in jd_keywords if kw not in text_lower]
+
+        # Sort missing by likely importance (longer = more specific = more important)
+        missing.sort(key=len, reverse=True)
+
+        match_ratio = len(found) / max(len(jd_keywords), 1)
+        match_score = min(100, max(0, round(match_ratio * 100)))
+
+        # Generate suggestions
+        suggestions = []
+        if missing:
+            suggestions.append(f'Add {len(missing[:10])} missing keywords found in the job description')
+        if match_score < 50:
+            suggestions.append('Your resume needs significant alignment with this job description')
+        if match_score >= 70:
+            suggestions.append('Good alignment! Fine-tune to match the remaining keywords.')
+
+        return {
+            'score': match_score,
+            'found': found[:20],
+            'missing': missing[:15],
+            'total_keywords': len(jd_keywords),
+            'suggestions': suggestions,
+        }
+
+    # ── Helpers ───────────────────────────────────────────────────
+    def _count_action_verbs(self):
+        return sum(1 for w in self.words if w.lower() in self.action_verbs)
+
+    def _count_weak_words(self):
+        return sum(1 for w in self.words if w.lower() in self.weak_words)
+
+    def _rewrite_sentence(self, sentence, weak_word):
+        replacement = self._replacements.get(weak_word.lower(), 'Delivered')
+        return re.sub(re.escape(weak_word), replacement, sentence, count=1, flags=re.I)

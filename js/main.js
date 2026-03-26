@@ -1,15 +1,13 @@
 /**
- * ResumeAI Main — Application Controller
- * Handles file uploads, API interaction, UI state, and tab navigation
+ * ResumeAI Pro — Main Controller v2
+ * Handles everything: file upload, API calls, tab nav, and all UI rendering.
  */
 
-// ── State ───────────────────────────────────────────────────────
 let currentFile = null;
-let currentResumeText = null;
-let analysisResults = null;
-let improvedContent = null;
+let currentText = null;
+let analysisData = null;
 
-// ── Sample Resume ───────────────────────────────────────────────
+// ── Sample Resume ────────────────────────────────────────────────
 const SAMPLE_RESUME = `John Mitchell
 john.mitchell@email.com | (555) 123-4567 | linkedin.com/in/johnmitchell | github.com/jmitchell
 
@@ -55,564 +53,566 @@ CERTIFICATIONS
 • AWS Certified Solutions Architect – Associate (2023)
 • Google Professional Cloud Developer (2022)`;
 
-
-// ── Initialization ──────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
+// ── Init ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
     initFileUpload();
-    initTabNavigation();
-    initSectionNavigation();
-    initThemeToggle();
-    initDemoButtons();
-    initActionButtons();
+    initTabs();
+    initNavigation();
+    initActions();
 });
 
-// ── File Upload ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ══════════════════════════════════════════════════════════════════
 function initFileUpload() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-
     if (!dropZone || !fileInput) return;
 
-    // File input change
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0]);
-        }
+    fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault(); dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
 
-    // Drag and drop
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-        if (e.dataTransfer.files.length > 0) {
-            handleFileSelect(e.dataTransfer.files[0]);
-        }
-    });
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    if (analyzeBtn) analyzeBtn.addEventListener('click', () => startAnalysis());
 }
 
-function handleFileSelect(file) {
-    // Validate
-    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/msword'];
-    const validExtensions = ['pdf', 'docx', 'doc', 'txt'];
+function handleFile(file) {
+    const validExt = ['pdf', 'docx', 'doc', 'txt'];
     const ext = file.name.split('.').pop().toLowerCase();
-
-    if (!validExtensions.includes(ext)) {
-        showToast('Unsupported file format. Please upload PDF, DOCX, or TXT.', 'error');
-        return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-        showToast('File too large. Maximum size is 10MB.', 'error');
-        return;
-    }
+    if (!validExt.includes(ext)) return showToast('Unsupported format. Use PDF, DOCX, or TXT.', 'error');
+    if (file.size > 10 * 1024 * 1024) return showToast('File too large (max 10MB).', 'error');
 
     currentFile = file;
+    document.getElementById('dropZone').style.display = 'none';
+    const uf = document.getElementById('uploadedFile');
+    uf.style.display = 'block';
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = formatSize(file.size);
 
-    // Show file info
-    const dropZone = document.getElementById('dropZone');
-    const uploadedFile = document.getElementById('uploadedFile');
-    const fileName = document.getElementById('fileName');
-    const fileSize = document.getElementById('fileSize');
-
-    if (dropZone) dropZone.style.display = 'none';
-    if (uploadedFile) uploadedFile.style.display = 'block';
-    if (fileName) fileName.textContent = file.name;
-    if (fileSize) fileSize.textContent = formatFileSize(file.size);
-
-    // Remove file button
-    const removeBtn = document.getElementById('removeFile');
-    if (removeBtn) {
-        removeBtn.onclick = () => {
-            currentFile = null;
-            if (dropZone) dropZone.style.display = '';
-            if (uploadedFile) uploadedFile.style.display = 'none';
-            document.getElementById('fileInput').value = '';
-        };
-    }
-
-    // Analyze button
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    if (analyzeBtn) {
-        analyzeBtn.onclick = () => analyzeResume();
-    }
+    document.getElementById('removeFile').onclick = () => {
+        currentFile = null;
+        document.getElementById('dropZone').style.display = '';
+        uf.style.display = 'none';
+        document.getElementById('fileInput').value = '';
+    };
 }
 
-// ── Analyze Resume ──────────────────────────────────────────────
-async function analyzeResume(demoText) {
-    const uploadSection = document.getElementById('uploadSection');
-    const loadingSection = document.getElementById('loadingSection');
-    const resultsSection = document.getElementById('resultsSection');
-
-    // Show loading
-    if (uploadSection) uploadSection.style.display = 'none';
-    if (loadingSection) loadingSection.style.display = '';
-    if (resultsSection) resultsSection.style.display = 'none';
+// ══════════════════════════════════════════════════════════════════
+// ANALYSIS PIPELINE
+// ══════════════════════════════════════════════════════════════════
+async function startAnalysis(demoText) {
+    show('loadingSection'); hide('uploadSection'); hide('resultsSection'); hide('heroSection'); hide('featuresSection');
 
     try {
         let text;
-
         if (demoText) {
             text = demoText;
-            updateLoadingProgress(30, 'Loading demo resume...');
+            updateLoading(1, 'Loading demo resume...');
         } else if (currentFile) {
-            updateLoadingProgress(10, 'Parsing document...');
-            text = await parseResumeFile(currentFile);
-            updateLoadingProgress(30, 'Text extracted successfully...');
+            updateLoading(1, 'Parsing document...');
+            text = await parseFile(currentFile);
+            updateLoading(2, 'Text extracted...');
         } else {
-            throw new Error('No file selected');
+            return showToast('Please upload a resume first.', 'error') || (show('uploadSection'), hide('loadingSection'));
         }
 
-        currentResumeText = text;
+        currentText = text;
         const role = document.getElementById('roleSelect')?.value || 'Generic';
+        const jd = document.getElementById('jobDescInput')?.value || '';
 
-        // Try backend API first, fall back to client-side
+        updateLoading(2, 'Running AI analysis...');
+
+        // Try API first, fallback to client-side
         let results;
-        updateLoadingProgress(50, 'Running AI analysis engines...');
-
         try {
-            results = await analyzeViaAPI(text, role);
-            updateLoadingProgress(80, 'Processing multi-engine results...');
-        } catch (apiErr) {
-            console.log('API unavailable, using client-side analysis:', apiErr.message);
-            updateLoadingProgress(60, 'Running local analysis...');
-            results = analyzeClientSide(text);
-            updateLoadingProgress(80, 'Analysis complete...');
+            results = await analyzeViaAPI(text, role, jd);
+            updateLoading(4, 'Processing results...');
+        } catch (err) {
+            console.log('API unavailable, using client-side:', err.message);
+            updateLoading(3, 'Running local analysis...');
+            results = analyzeResumeFull(text, role, jd);
+            updateLoading(4, 'Analysis complete...');
         }
 
-        analysisResults = results;
-
-        // Generate improved content
-        updateLoadingProgress(90, 'Generating improvements...');
-        const resumeData = extractResumeData(text);
-        improvedContent = generateImprovedContent(resumeData, results);
-
-        // Display results
-        updateLoadingProgress(100, 'Preparing results...');
+        analysisData = results;
+        updateLoading(5, 'Rendering dashboard...');
         await delay(300);
-        displayResults(results, resumeData);
+
+        renderResults(results);
+        hide('loadingSection'); show('resultsSection');
 
     } catch (err) {
         console.error('Analysis error:', err);
-        showToast('Error analyzing resume: ' + err.message, 'error');
-        if (uploadSection) uploadSection.style.display = '';
-        if (loadingSection) loadingSection.style.display = 'none';
+        showToast('Error: ' + err.message, 'error');
+        hide('loadingSection'); show('uploadSection'); show('heroSection'); show('featuresSection');
     }
 }
 
-// ── Backend API Call ─────────────────────────────────────────────
-async function analyzeViaAPI(text, role) {
-    const response = await fetch('/api/analyze-multi', {
+async function parseFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'txt') return await file.text();
+
+    if (ext === 'pdf' && typeof pdfjsLib !== 'undefined') {
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += content.items.map(item => item.str).join(' ') + '\n';
+        }
+        return text;
+    }
+
+    if ((ext === 'docx' || ext === 'doc') && typeof mammoth !== 'undefined') {
+        const buf = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer: buf });
+        return result.value;
+    }
+
+    return await file.text();
+}
+
+async function analyzeViaAPI(text, role, jd) {
+    const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, role, jd: '' })
+        body: JSON.stringify({ text, role, jd })
     });
-
-    if (!response.ok) throw new Error('API returned status ' + response.status);
-    const data = await response.json();
+    if (!res.ok) throw new Error('API ' + res.status);
+    const data = await res.json();
     if (data.error) throw new Error(data.error);
+    return data;
+}
 
-    // Transform API response to match our display format
-    const customScore = data.synthesis?.final_score || data.models?.custom?.score || 50;
-    const scores = {
-        content: data.models?.gpt4?.score || customScore,
-        formatting: Math.min(100, customScore + 5),
-        keywords: data.synthesis?.metrics?.ats_score || 50,
-        experience: data.models?.claude?.score || customScore,
-        skills: data.models?.gemini?.score || customScore,
-        education: Math.min(100, customScore + 10)
-    };
+// ══════════════════════════════════════════════════════════════════
+// RENDER RESULTS
+// ══════════════════════════════════════════════════════════════════
+function renderResults(r) {
+    // Scores
+    animateScore('overallScore', r.overall_score, 'overallGauge', 160, 'overallLabel');
+    animateScore('atsScore', r.ats_score, 'atsGauge', 120, 'atsLabel');
+    animateScore('readabilityScore', r.readability_score, 'readabilityGauge', 120, 'readabilityLabel');
 
-    const weights = { content: 0.25, formatting: 0.15, keywords: 0.20, experience: 0.20, skills: 0.10, education: 0.10 };
-    let overall = 0;
-    for (const [key, weight] of Object.entries(weights)) {
-        overall += (scores[key] || 0) * weight;
+    // Weak sections
+    renderWeakSections(r.weak_sections || []);
+
+    // Category bars
+    renderCategoryBars(r.categories || {});
+
+    // Keywords
+    renderKeywords(r.ats_details || {});
+
+    // Feedback
+    renderFeedback(r.feedback || {});
+
+    // Improvements tab
+    renderImprovements(r.improvements || {});
+
+    // Job Match tab
+    renderJobMatch(r.jd_match);
+
+    // Download tab
+    renderDownload(r.improved_resume || '');
+}
+
+function animateScore(elId, value, canvasId, size, labelId) {
+    const el = document.getElementById(elId);
+    if (el) animateNumber(el, 0, value, 1200);
+
+    const canvas = document.getElementById(canvasId);
+    if (canvas) drawGauge(canvas, value, size);
+
+    const label = document.getElementById(labelId);
+    if (label) {
+        const { text, color } = getScoreLabel(value);
+        label.textContent = text;
+        label.style.color = color;
     }
-    overall = Math.round(overall);
+}
 
-    // Build suggestions from API feedback
-    const suggestions = [];
-    const modelFeedback = [
-        { model: data.models?.gpt4, icon: 'fa-sitemap', color: '#7c4dff', title: 'Structure & Impact (GPT-4)' },
-        { model: data.models?.claude, icon: 'fa-comment-dots', color: '#00e5ff', title: 'Tone & Nuance (Claude 3)' },
-        { model: data.models?.gemini, icon: 'fa-chart-line', color: '#ff4081', title: 'Data & Trends (Gemini Pro)' },
-        { model: data.models?.custom, icon: 'fa-brain', color: '#00e676', title: 'Deep Heuristics (SuperEngine)' }
-    ];
+function getScoreLabel(score) {
+    if (score >= 85) return { text: 'Excellent', color: '#4edea3' };
+    if (score >= 70) return { text: 'Good', color: '#6ffbbe' };
+    if (score >= 55) return { text: 'Average', color: '#f59e0b' };
+    if (score >= 40) return { text: 'Needs Work', color: '#ff9800' };
+    return { text: 'Poor', color: '#ff6b6b' };
+}
 
-    for (const mf of modelFeedback) {
-        if (mf.model && mf.model.feedback) {
-            const feedback = Array.isArray(mf.model.feedback) ? mf.model.feedback : [mf.model.feedback];
-            suggestions.push({
-                priority: mf.model.score < 50 ? 'high' : mf.model.score < 70 ? 'medium' : 'low',
-                category: mf.title,
-                icon: mf.icon,
-                iconColor: mf.color,
-                title: mf.title,
-                description: feedback[0] || 'Analysis complete.',
-                tips: feedback.slice(1, 5)
-            });
-        }
-    }
+function drawGauge(canvas, value, size) {
+    const ctx = canvas.getContext('2d');
+    const cx = size / 2, cy = size / 2, r = (size / 2) - 10;
+    ctx.clearRect(0, 0, size, size);
 
-    // Add ATS specific suggestion
-    if (data.synthesis?.metrics?.ats_missing?.length > 0) {
-        suggestions.push({
-            priority: 'high',
-            category: 'ATS Keywords',
-            icon: 'fa-robot',
-            iconColor: '#ffab40',
-            title: 'Missing ATS Keywords',
-            description: `Your resume is missing ${data.synthesis.metrics.ats_missing.length} important keywords for your target role.`,
-            tips: data.synthesis.metrics.ats_missing.slice(0, 5).map(k => `Add "${k}" to your resume`)
+    // Track
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0.75 * Math.PI, 2.25 * Math.PI);
+    ctx.strokeStyle = '#2d3449';
+    ctx.lineWidth = size > 140 ? 12 : 8;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Fill
+    const pct = Math.min(value, 100) / 100;
+    const endAngle = 0.75 * Math.PI + pct * 1.5 * Math.PI;
+    const { color } = getScoreLabel(value);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0.75 * Math.PI, endAngle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size > 140 ? 12 : 8;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+}
+
+function renderWeakSections(sections) {
+    const list = document.getElementById('weakSectionsList');
+    if (!list) return;
+    list.innerHTML = sections.map(s => `
+        <div class="weak-item">
+            <span class="severity-badge severity-${s.severity}">${s.severity}</span>
+            <div class="weak-item-content">
+                <h5>${s.section}</h5>
+                <p>${s.reason}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderCategoryBars(categories) {
+    const container = document.getElementById('categoryBars');
+    if (!container) return;
+
+    container.innerHTML = Object.entries(categories).map(([name, value]) => {
+        const { color } = getScoreLabel(value);
+        return `
+        <div class="cat-bar-item">
+            <span class="cat-bar-label">${name}</span>
+            <div class="cat-bar-track"><div class="cat-bar-fill" style="background:${color}" data-width="${value}%"></div></div>
+            <span class="cat-bar-value" style="color:${color}">${value}</span>
+        </div>`;
+    }).join('');
+
+    // Animate bars
+    setTimeout(() => {
+        container.querySelectorAll('.cat-bar-fill').forEach(bar => {
+            bar.style.width = bar.dataset.width;
         });
-    }
-
-    return {
-        overall,
-        scores,
-        suggestions: suggestions.length > 0 ? suggestions : generateSuggestions(scores, extractResumeData(currentResumeText)),
-        strengths: identifyStrengths(scores, extractResumeData(currentResumeText)),
-        weaknesses: identifyWeaknesses(scores, extractResumeData(currentResumeText)),
-        rating: getScoreRating(overall),
-        wordCount: currentResumeText ? currentResumeText.split(/\s+/).length : 0,
-        apiResponse: data
-    };
+    }, 100);
 }
 
-// ── Client-side Analysis ─────────────────────────────────────────
-function analyzeClientSide(text) {
-    const resumeData = extractResumeData(text);
-    const results = analyzeResumeQuality(resumeData);
-    results.wordCount = resumeData.wordCount;
-    return results;
+function renderKeywords(ats) {
+    const chips = document.getElementById('keywordChips');
+    const subtitle = document.getElementById('keywordsSubtitle');
+    if (!chips) return;
+
+    if (subtitle) subtitle.textContent = `${ats.found_count || 0}/${ats.total_target || 0} keywords matched for ${ats.role || 'Generic'}`;
+
+    let html = '';
+    if (ats.found) html += ats.found.slice(0, 10).map(k => `<span class="keyword-chip found">${k}</span>`).join('');
+    if (ats.missing) html += ats.missing.slice(0, 12).map(k => `<span class="keyword-chip">${k}</span>`).join('');
+    chips.innerHTML = html;
 }
 
-// ── Display Results ──────────────────────────────────────────────
-function displayResults(results, resumeData) {
-    const loadingSection = document.getElementById('loadingSection');
-    const resultsSection = document.getElementById('resultsSection');
+function renderFeedback(feedback) {
+    const container = document.getElementById('feedbackSections');
+    if (!container) return;
 
-    if (loadingSection) loadingSection.style.display = 'none';
-    if (resultsSection) resultsSection.style.display = '';
-
-    // Score gauge
-    const scoreEl = document.getElementById('overallScore');
-    if (scoreEl) {
-        animateNumber(scoreEl, 0, results.overall, 1200);
-    }
-    drawScoreGauge('scoreGauge', results.overall);
-
-    // Score rating
-    const ratingEl = document.getElementById('scoreRating');
-    if (ratingEl && results.rating) {
-        ratingEl.textContent = results.rating.text;
-        ratingEl.style.color = results.rating.color;
-    }
-
-    // Breakdown
-    renderBreakdown(results.scores);
-
-    // Suggestions
-    renderSuggestions(results.suggestions || []);
-
-    // Rewriter
-    if (improvedContent) {
-        renderRewriterSections(improvedContent);
-    }
-
-    // Comparison
-    const originalEl = document.getElementById('originalContent');
-    const improvedEl = document.getElementById('improvedContent');
-    if (originalEl) originalEl.textContent = currentResumeText || '';
-    if (improvedEl && improvedContent) improvedEl.textContent = improvedContent.fullResume || '';
-
-    // Charts
-    drawCategoryChart('categoryChartCanvas', results.scores);
-    drawComparisonChart('comparisonChartCanvas', results.scores);
-
-    // Detailed report
-    results.wordCount = results.wordCount || (resumeData ? resumeData.wordCount : 0);
-    renderDetailedReport(results);
+    container.innerHTML = Object.entries(feedback).map(([title, items]) => `
+        <div class="feedback-block">
+            <h5>${title}</h5>
+            <ul>${items.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+        </div>
+    `).join('');
 }
 
-// ── Tab Navigation ──────────────────────────────────────────────
-function initTabNavigation() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const tabId = this.dataset.tab;
+function renderImprovements(improvements) {
+    const container = document.getElementById('improvementSections');
+    if (!container) return;
 
-            // Remove active from all tabs
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    if (!Object.keys(improvements).length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle"></i><h4>All sections look good!</h4><p>No major improvements needed.</p></div>';
+        return;
+    }
 
-            // Activate clicked tab
-            this.classList.add('active');
-            const pane = document.getElementById(tabId + 'Tab');
-            if (pane) pane.classList.add('active');
-        });
+    container.innerHTML = Object.entries(improvements).map(([sec, data]) => `
+        <div class="improvement-block">
+            <div class="improvement-header" onclick="this.parentElement.classList.toggle('open')">
+                <h5><i class="fas fa-file-pen"></i> ${sec.charAt(0).toUpperCase() + sec.slice(1)}</h5>
+                <i class="fas fa-chevron-down improvement-chevron"></i>
+            </div>
+            <div class="improvement-body">
+                <p class="text-box-label text-box-label-original">Original</p>
+                <div class="text-box text-box-original">${escapeHtml(data.original)}</div>
+                <p class="text-box-label text-box-label-improved">Improved</p>
+                <div class="text-box text-box-improved">${escapeHtml(data.improved)}</div>
+                ${data.changes.length ? `<ul class="changes-summary">${data.changes.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderJobMatch(jdMatch) {
+    const container = document.getElementById('jobMatchContent');
+    if (!container) return;
+
+    if (!jdMatch) {
+        container.innerHTML = `<div class="empty-state" id="noJdState"><i class="fas fa-bullseye"></i><h4>No Job Description Provided</h4><p>Paste a job description in the upload form and re-analyze to get your match score.</p></div>`;
+        return;
+    }
+
+    const { color } = getScoreLabel(jdMatch.score);
+    container.innerHTML = `
+        <div class="job-match-grid">
+            <div class="match-score-panel">
+                <canvas id="matchGauge" width="160" height="160"></canvas>
+                <h4>Job Match Score</h4>
+                <p class="score-label" style="color:${color}">${jdMatch.score}/100</p>
+                <p style="font-size:0.82rem;color:var(--on-surface-variant);margin-top:8px">${jdMatch.total_keywords} keywords analyzed</p>
+            </div>
+            <div class="match-details-panel">
+                <div class="match-section">
+                    <h5>Missing Keywords</h5>
+                    <div class="keyword-chips">${jdMatch.missing.slice(0,12).map(k => `<span class="keyword-chip">${k}</span>`).join('')}</div>
+                </div>
+                <div class="match-section">
+                    <h5>Matched Keywords</h5>
+                    <div class="keyword-chips">${jdMatch.found.slice(0,12).map(k => `<span class="keyword-chip found">${k}</span>`).join('')}</div>
+                </div>
+                ${jdMatch.suggestions.length ? `<div class="match-section"><h5>Suggestions</h5><ul class="feedback-block" style="background:none;padding:0">${jdMatch.suggestions.map(s => `<li style="padding:4px 0 4px 16px;position:relative;font-size:0.84rem;color:var(--on-surface-variant)"><span style="position:absolute;left:0">→</span> ${escapeHtml(s)}</li>`).join('')}</ul></div>` : ''}
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        const matchCanvas = document.getElementById('matchGauge');
+        if (matchCanvas) drawGauge(matchCanvas, jdMatch.score, 160);
+    }, 100);
+}
+
+function renderDownload(improvedResume) {
+    const preview = document.getElementById('resumePreview');
+    if (preview) preview.textContent = improvedResume || 'No improved resume generated.';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════════
+function initTabs() {
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const pane = document.getElementById(tab + 'Tab');
+        if (pane) pane.classList.add('active');
     });
 }
 
-// ── Section Navigation (About, Pricing) ──────────────────────────
-function initSectionNavigation() {
+// ══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════
+function initNavigation() {
     document.querySelectorAll('.nav-link[data-section]').forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', e => {
             e.preventDefault();
-            const section = this.dataset.section;
-
-            // Update active nav link
+            const sec = link.dataset.section;
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-            this.classList.add('active');
+            link.classList.add('active');
 
-            // Show/hide sections
-            const aboutSection = document.getElementById('aboutSection');
-            const pricingSection = document.getElementById('pricingSection');
-            const uploadSection = document.getElementById('uploadSection');
-            const resultsSection = document.getElementById('resultsSection');
-            const hero = document.querySelector('.hero');
-            const features = document.querySelector('.features-grid');
+            hide('aboutSection'); hide('pricingSection');
 
-            // Hide all optional sections
-            if (aboutSection) aboutSection.style.display = 'none';
-            if (pricingSection) pricingSection.style.display = 'none';
-
-            if (section === 'analyzer') {
-                if (hero) hero.style.display = '';
-                if (features) features.style.display = '';
-                if (uploadSection && !analysisResults) uploadSection.style.display = '';
-                if (resultsSection && analysisResults) resultsSection.style.display = '';
-            } else if (section === 'about') {
-                if (hero) hero.style.display = 'none';
-                if (features) features.style.display = 'none';
-                if (uploadSection) uploadSection.style.display = 'none';
-                if (resultsSection) resultsSection.style.display = 'none';
-                if (aboutSection) aboutSection.style.display = '';
-            } else if (section === 'pricing') {
-                if (hero) hero.style.display = 'none';
-                if (features) features.style.display = 'none';
-                if (uploadSection) uploadSection.style.display = 'none';
-                if (resultsSection) resultsSection.style.display = 'none';
-                if (pricingSection) pricingSection.style.display = '';
+            if (sec === 'analyzer') {
+                show('heroSection'); show('featuresSection');
+                if (analysisData) show('resultsSection'); else show('uploadSection');
+            } else if (sec === 'about') {
+                hide('heroSection'); hide('featuresSection'); hide('uploadSection'); hide('resultsSection');
+                show('aboutSection');
+            } else if (sec === 'pricing') {
+                hide('heroSection'); hide('featuresSection'); hide('uploadSection'); hide('resultsSection');
+                show('pricingSection');
             }
         });
     });
+
+    // Logo click -> home
+    const logo = document.getElementById('logoLink');
+    if (logo) logo.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelector('.nav-link[data-section="analyzer"]')?.classList.add('active');
+        hide('aboutSection'); hide('pricingSection');
+        show('heroSection'); show('featuresSection');
+        if (analysisData) show('resultsSection'); else show('uploadSection');
+    });
 }
 
-// ── Theme Toggle ─────────────────────────────────────────────────
-function initThemeToggle() {
-    const toggle = document.getElementById('themeToggle');
-    if (!toggle) return;
+// ══════════════════════════════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════════════════════════════
+function initActions() {
+    // Demo buttons
+    document.getElementById('heroDemoBtn')?.addEventListener('click', () => startAnalysis(SAMPLE_RESUME));
 
-    toggle.addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme');
-        const newTheme = current === 'light' ? '' : 'light';
+    // Hero CTA
+    document.getElementById('heroCtaBtn')?.addEventListener('click', e => {
+        e.preventDefault();
+        document.getElementById('uploadSection')?.scrollIntoView({ behavior: 'smooth' });
+    });
 
-        if (newTheme) {
-            document.documentElement.setAttribute('data-theme', 'light');
-            toggle.innerHTML = '<i class="fas fa-sun"></i> Theme';
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            toggle.innerHTML = '<i class="fas fa-moon"></i> Theme';
+    // Analyze new
+    document.getElementById('analyzeNewBtn')?.addEventListener('click', () => {
+        analysisData = null; currentFile = null; currentText = null;
+        hide('resultsSection'); show('heroSection'); show('featuresSection'); show('uploadSection');
+        document.getElementById('dropZone').style.display = '';
+        document.getElementById('uploadedFile').style.display = 'none';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('jobDescInput').value = '';
+    });
+
+    // Download TXT
+    document.getElementById('downloadTxtBtn')?.addEventListener('click', () => {
+        if (!analysisData?.improved_resume) return showToast('No improved resume.', 'error');
+        downloadFile(analysisData.improved_resume, 'improved_resume.txt', 'text/plain');
+        showToast('Improved resume downloaded!', 'success');
+    });
+
+    // Export PDF
+    document.getElementById('exportPdfBtn')?.addEventListener('click', () => {
+        if (!analysisData) return showToast('No analysis to export.', 'error');
+        exportPDF(analysisData);
+    });
+}
+
+function exportPDF(r) {
+    try {
+        if (typeof jspdf === 'undefined' || !jspdf.jsPDF) return showToast('PDF library not loaded.', 'error');
+        const { jsPDF } = jspdf;
+        const doc = new jsPDF();
+        let y = 20;
+
+        doc.setFontSize(22); doc.setTextColor(99, 102, 241);
+        doc.text('ResumeAI Pro — Analysis Report', 20, y); y += 15;
+
+        doc.setFontSize(12); doc.setTextColor(60, 60, 60);
+        doc.text(`Overall Score: ${r.overall_score}/100`, 20, y); y += 8;
+        doc.text(`ATS Score: ${r.ats_score}/100`, 20, y); y += 8;
+        doc.text(`Readability: ${r.readability_score}/100`, 20, y); y += 12;
+
+        doc.setFontSize(14); doc.setTextColor(0);
+        doc.text('Category Breakdown', 20, y); y += 8;
+        doc.setFontSize(11); doc.setTextColor(60, 60, 60);
+        for (const [k, v] of Object.entries(r.categories || {})) {
+            doc.text(`  ${k}: ${v}/100`, 20, y); y += 7;
         }
-    });
-}
+        y += 5;
 
-// ── Demo Buttons ─────────────────────────────────────────────────
-function initDemoButtons() {
-    const demoBtn = document.getElementById('demoBtn');
-    const heroDemoBtn = document.getElementById('heroDemoBtn');
+        doc.setFontSize(14); doc.setTextColor(0);
+        doc.text('Weak Sections', 20, y); y += 8;
+        doc.setFontSize(10); doc.setTextColor(60, 60, 60);
+        for (const ws of (r.weak_sections || [])) {
+            const txt = `[${ws.severity.toUpperCase()}] ${ws.section}: ${ws.reason}`;
+            const lines = doc.splitTextToSize(txt, 170);
+            for (const line of lines) { doc.text(line, 20, y); y += 6; }
+            y += 2;
+            if (y > 270) { doc.addPage(); y = 20; }
+        }
 
-    const runDemo = () => analyzeResume(SAMPLE_RESUME);
-
-    if (demoBtn) demoBtn.addEventListener('click', runDemo);
-    if (heroDemoBtn) heroDemoBtn.addEventListener('click', runDemo);
-}
-
-// ── Action Buttons ───────────────────────────────────────────────
-function initActionButtons() {
-    // Analyze New
-    const analyzeNewBtn = document.getElementById('analyzeNewBtn');
-    if (analyzeNewBtn) {
-        analyzeNewBtn.addEventListener('click', () => {
-            analysisResults = null;
-            improvedContent = null;
-            currentFile = null;
-            currentResumeText = null;
-
-            const uploadSection = document.getElementById('uploadSection');
-            const resultsSection = document.getElementById('resultsSection');
-            const dropZone = document.getElementById('dropZone');
-            const uploadedFile = document.getElementById('uploadedFile');
-
-            if (uploadSection) uploadSection.style.display = '';
-            if (resultsSection) resultsSection.style.display = 'none';
-            if (dropZone) dropZone.style.display = '';
-            if (uploadedFile) uploadedFile.style.display = 'none';
-
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) fileInput.value = '';
-        });
-    }
-
-    // Download Improved
-    const downloadBtn = document.getElementById('downloadBtn');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', () => {
-            if (!improvedContent || !improvedContent.fullResume) {
-                showToast('No improved content available.', 'error');
-                return;
+        y += 5;
+        doc.setFontSize(14); doc.setTextColor(0);
+        doc.text('Feedback', 20, y); y += 8;
+        doc.setFontSize(10);
+        for (const [cat, items] of Object.entries(r.feedback || {})) {
+            doc.setTextColor(0); doc.text(cat, 20, y); y += 6;
+            doc.setTextColor(60, 60, 60);
+            for (const item of items) {
+                const lines = doc.splitTextToSize(`  ${item}`, 170);
+                for (const line of lines) { doc.text(line, 20, y); y += 5; }
+                if (y > 270) { doc.addPage(); y = 20; }
             }
-            const blob = new Blob([improvedContent.fullResume], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'improved_resume.txt';
-            a.click();
-            URL.revokeObjectURL(url);
-            showToast('Improved resume downloaded!', 'success');
-        });
-    }
+            y += 3;
+        }
 
-    // Export PDF (simulation)
-    const exportBtn = document.getElementById('exportReportBtn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            if (!analysisResults) {
-                showToast('No analysis to export.', 'error');
-                return;
-            }
-
-            try {
-                if (typeof jspdf !== 'undefined' && jspdf.jsPDF) {
-                    const { jsPDF } = jspdf;
-                    const doc = new jsPDF();
-
-                    doc.setFontSize(20);
-                    doc.setTextColor(124, 77, 255);
-                    doc.text('ResumeAI Analysis Report', 20, 25);
-
-                    doc.setFontSize(12);
-                    doc.setTextColor(60, 60, 60);
-                    doc.text(`Overall Score: ${analysisResults.overall}/100`, 20, 40);
-                    doc.text(`Rating: ${analysisResults.rating?.text || 'N/A'}`, 20, 50);
-
-                    let y = 65;
-                    doc.setFontSize(14);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text('Score Breakdown:', 20, y);
-                    y += 10;
-
-                    doc.setFontSize(11);
-                    for (const [key, val] of Object.entries(analysisResults.scores || {})) {
-                        doc.text(`${key}: ${val}/100`, 25, y);
-                        y += 8;
-                    }
-
-                    y += 5;
-                    doc.setFontSize(14);
-                    doc.text('Strengths:', 20, y);
-                    y += 10;
-                    doc.setFontSize(10);
-                    for (const s of (analysisResults.strengths || [])) {
-                        doc.text(`• ${s}`, 25, y);
-                        y += 7;
-                        if (y > 270) { doc.addPage(); y = 20; }
-                    }
-
-                    y += 5;
-                    doc.setFontSize(14);
-                    doc.text('Areas for Improvement:', 20, y);
-                    y += 10;
-                    doc.setFontSize(10);
-                    for (const w of (analysisResults.weaknesses || [])) {
-                        doc.text(`• ${w}`, 25, y);
-                        y += 7;
-                        if (y > 270) { doc.addPage(); y = 20; }
-                    }
-
-                    doc.save('resume_analysis_report.pdf');
-                    showToast('PDF report downloaded!', 'success');
-                } else {
-                    showToast('PDF library not loaded. Try refreshing.', 'error');
-                }
-            } catch (err) {
-                showToast('Error generating PDF: ' + err.message, 'error');
-            }
-        });
-    }
-
-    // Save Analysis
-    const saveBtn = document.getElementById('saveReportBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', async () => {
-            if (!analysisResults) {
-                showToast('No analysis to save.', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        results: analysisResults,
-                        resumeText: currentResumeText,
-                        timestamp: new Date().toISOString()
-                    })
-                });
-
-                const data = await response.json();
-                if (data.id) {
-                    showToast(`Analysis saved! ID: ${data.id}`, 'success');
-                } else {
-                    showToast('Saved locally (offline mode).', 'success');
-                }
-            } catch (err) {
-                // Offline fallback
-                showToast('Saved locally (offline mode).', 'success');
-            }
-        });
+        doc.save('resume_analysis_report.pdf');
+        showToast('PDF report downloaded!', 'success');
+    } catch (err) {
+        showToast('PDF error: ' + err.message, 'error');
     }
 }
 
-// ── Utilities ────────────────────────────────────────────────────
-function updateLoadingProgress(percent, text) {
-    const bar = document.getElementById('loadingBar');
+// ══════════════════════════════════════════════════════════════════
+// LOADING
+// ══════════════════════════════════════════════════════════════════
+function updateLoading(step, text) {
     const label = document.getElementById('loadingText');
-
-    if (bar) bar.style.width = percent + '%';
     if (label) label.textContent = text;
-}
 
-function animateNumber(element, start, end, duration) {
-    const startTime = performance.now();
+    const bar = document.getElementById('loadingBar');
+    if (bar) bar.style.width = (step / 5 * 100) + '%';
 
-    function update(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-        const value = Math.round(start + (end - start) * eased);
-        element.textContent = value;
-        if (progress < 1) requestAnimationFrame(update);
+    for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById('step' + i);
+        if (el) {
+            el.classList.remove('active', 'done');
+            if (i < step) el.classList.add('done');
+            else if (i === step) el.classList.add('active');
+        }
     }
-
-    requestAnimationFrame(update);
 }
 
-function formatFileSize(bytes) {
+// ══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════════════════════════
+function show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
+function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+function animateNumber(el, from, to, duration) {
+    const start = performance.now();
+    function tick(now) {
+        const p = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(from + (to - from) * ease);
+        if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
+
+function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+}
+
+function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${escapeHtml(message)}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
 }

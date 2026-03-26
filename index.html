@@ -3,322 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumeAI - Intelligent Resume Analyzer</title>
+    <title>ResumeAI Pro — Advanced Resume Analysis & Optimization</title>
+    <meta name="description" content="Upload your resume and get instant AI-powered analysis with ATS scoring, weak section detection, keyword optimization, and a downloadable improved version.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Chart.js for visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- PDF.js for PDF parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <!-- Mammoth.js for DOCX parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="logo">
-                <i class="fas fa-file-alt"></i>
-                <span>ResumeAI</span>
-            </div>
+
+    <!-- ═══ HEADER ═══ -->
+    <header class="header" id="header">
+        <div class="container header-inner">
+            <a href="#" class="logo" id="logoLink">
+                <span class="logo-mark">R</span>
+                <span class="logo-text">ResumeAI <span class="logo-pro">Pro</span></span>
+            </a>
             <nav class="nav">
-                <a href="#" class="nav-link active" data-section="analyzer">Analyzer</a>
-                <a href="#" class="nav-link" data-section="about">About</a>
-                <a href="#" class="nav-link" data-section="pricing">Pricing</a>
-                <button id="themeToggle" class="btn btn-secondary" style="margin-left: 1rem;"><i class="fas fa-moon"></i> Theme</button>
+                <a href="#" class="nav-link active" data-section="analyzer" id="navAnalyzer">Analyzer</a>
+                <a href="#" class="nav-link" data-section="about" id="navAbout">How It Works</a>
+                <a href="#" class="nav-link" data-section="pricing" id="navPricing">Pricing</a>
             </nav>
         </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="container">
-            <h1 class="hero-title">Transform Your Resume with AI</h1>
-            <p class="hero-subtitle">Get instant feedback, score analysis, and intelligent suggestions to make your resume stand out</p>
-            <div class="mt-3">
-                <button id="heroDemoBtn" class="btn btn-primary btn-large" style="max-width: 320px;">
-                    <i class="fas fa-play"></i> Analyze Demo Resume
-                </button>
+    <main>
+        <!-- ═══ HERO ═══ -->
+        <section class="hero" id="heroSection">
+            <div class="container">
+                <p class="hero-eyebrow"><i class="fas fa-bolt"></i> AI-Powered Engine</p>
+                <h1 class="hero-title">Analyze. Optimize. <span class="hero-gradient">Get Hired.</span></h1>
+                <p class="hero-subtitle">Upload your resume and get an instant, in-depth analysis with ATS scoring, weak section detection, and a fully improved version ready for download.</p>
+                <div class="hero-actions">
+                    <a href="#uploadSection" class="btn btn-primary btn-lg" id="heroCtaBtn">Start Analysis</a>
+                    <button class="btn btn-ghost btn-lg" id="heroDemoBtn"><i class="fas fa-play"></i> Try Demo Resume</button>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-item"><span class="stat-number">98%</span><span class="stat-label">ATS Accuracy</span></div>
+                    <div class="stat-item"><span class="stat-number">5-Step</span><span class="stat-label">Deep Analysis</span></div>
+                    <div class="stat-item"><span class="stat-number">Instant</span><span class="stat-label">Results</span></div>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
-            <!-- Feature Highlights -->
-            <section class="features-grid">
-                <div class="feature-card">
-                    <i class="fas fa-gauge-high"></i>
-                    <h3>Smart Scoring</h3>
-                    <p>Weighted scoring across content, formatting, ATS keywords, experience, skills, and education.</p>
+        <!-- ═══ FEATURES ═══ -->
+        <section class="features-section" id="featuresSection">
+            <div class="container">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                        <h3>Quality Analysis</h3>
+                        <p>Overall, ATS, and Readability scores with detailed category breakdown across 6 dimensions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fas fa-magnifying-glass"></i></div>
+                        <h3>Weak Section Detection</h3>
+                        <p>Pinpoints exactly which sections need work — Summary, Experience, Skills — with severity ratings.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                        <h3>AI Improvement</h3>
+                        <p>Rewrites weak sections with strong action verbs, quantifiable achievements, and professional tone.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fas fa-bullseye"></i></div>
+                        <h3>Job Match Analysis</h3>
+                        <p>Compare against a job description to find your match score, missing keywords, and gaps.</p>
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <i class="fas fa-magic"></i>
-                    <h3>AI Rewriter</h3>
-                    <p>Instant, structured improvements for summary, experience, skills, and education sections.</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-chart-bar"></i>
-                    <h3>Deep Insights</h3>
-                    <p>Category charts, strengths, weaknesses, ATS and readability metrics out of the box.</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-download"></i>
-                    <h3>Export Ready</h3>
-                    <p>Download improved content and export analysis report to PDF for easy sharing.</p>
-                </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Upload Section -->
-            <div id="uploadSection" class="upload-section">
+        <!-- ═══ UPLOAD SECTION ═══ -->
+        <section class="upload-section" id="uploadSection">
+            <div class="container">
                 <div class="upload-card">
-                    <div class="upload-icon">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                    </div>
-                    <h2>Upload Your Resume</h2>
-                    <p class="upload-subtitle">Support for PDF, DOCX, and TXT formats</p>
-                    <div style="margin-bottom: 1rem;">
-                        <label for="roleSelect" style="font-weight:600; color: var(--text-secondary); margin-right:0.5rem;">Target Role:</label>
-                        <select id="roleSelect" class="btn btn-secondary" style="padding:0.5rem 1rem;">
-                            <option>Software Engineer</option>
-                            <option>Data Analyst</option>
-                            <option>Product Manager</option>
-                            <option>Designer</option>
-                            <option selected>Generic</option>
-                        </select>
-                    </div>
-                    
-                    <div id="dropZone" class="drop-zone">
-                        <i class="fas fa-file-upload"></i>
-                        <p>Drag & drop your resume here</p>
-                        <p class="drop-zone-or">or</p>
-                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                            <i class="fas fa-folder-open"></i> Browse Files
-                        </button>
-                        <button id="demoBtn" class="btn btn-secondary" style="margin-left: 0.5rem;">
-                            <i class="fas fa-play"></i> Try Demo
-                        </button>
-                        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+                    <div class="upload-header">
+                        <h2>Start Your Analysis</h2>
+                        <p>Upload your resume to get a comprehensive 5-step analysis</p>
                     </div>
 
-                    <div id="uploadedFile" class="uploaded-file" style="display: none;">
-                        <div class="file-info">
-                            <i class="fas fa-file-alt file-icon"></i>
-                            <div class="file-details">
-                                <span id="fileName" class="file-name"></span>
-                                <span id="fileSize" class="file-size"></span>
+                    <div class="upload-form">
+                        <!-- Drop zone -->
+                        <div class="drop-zone" id="dropZone">
+                            <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt" hidden>
+                            <div class="drop-zone-content">
+                                <div class="drop-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                                <p class="drop-text">Drag & drop your resume here</p>
+                                <span class="drop-or">or</span>
+                                <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+                                <p class="drop-formats">PDF, DOCX, or TXT • Max 10MB</p>
                             </div>
-                            <button id="removeFile" class="btn-icon">
-                                <i class="fas fa-times"></i>
-                            </button>
                         </div>
-                        <button id="analyzeBtn" class="btn btn-success btn-large">
-                            <i class="fas fa-brain"></i> Analyze Resume
-                        </button>
+
+                        <!-- File info (hidden initially) -->
+                        <div class="uploaded-file" id="uploadedFile" style="display:none;">
+                            <div class="file-info-bar">
+                                <i class="fas fa-file-lines file-icon"></i>
+                                <div class="file-details">
+                                    <span class="file-name" id="fileName"></span>
+                                    <span class="file-size" id="fileSize"></span>
+                                </div>
+                                <button class="btn-icon" id="removeFile" title="Remove file"><i class="fas fa-xmark"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Options row -->
+                        <div class="upload-options">
+                            <div class="option-group">
+                                <label for="roleSelect">Target Role</label>
+                                <select id="roleSelect">
+                                    <option value="Generic">Auto-Detect</option>
+                                    <option value="Software Engineer">Software Engineer</option>
+                                    <option value="Data Scientist">Data Scientist</option>
+                                    <option value="Data Analyst">Data Analyst</option>
+                                    <option value="Product Manager">Product Manager</option>
+                                    <option value="Designer">Designer</option>
+                                    <option value="Marketing Specialist">Marketing Specialist</option>
+                                    <option value="DevOps Engineer">DevOps Engineer</option>
+                                    <option value="Project Manager">Project Manager</option>
+                                </select>
+                            </div>
+                            <div class="option-group option-group-wide">
+                                <label for="jobDescInput">Job Description <span class="optional-tag">Optional</span></label>
+                                <textarea id="jobDescInput" placeholder="Paste the job description here for Job Match analysis..." rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg btn-full" id="analyzeBtn"><i class="fas fa-bolt"></i> Analyze Resume</button>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Analysis Loading -->
-            <div id="loadingSection" class="loading-section" style="display: none;">
+        <!-- ═══ LOADING ═══ -->
+        <section class="loading-section" id="loadingSection" style="display:none;">
+            <div class="container">
                 <div class="loading-card">
-                    <div class="loading-spinner"></div>
-                    <h3>Analyzing Your Resume...</h3>
-                    <p id="loadingText">Parsing document content...</p>
-                    <div class="loading-progress">
-                        <div id="loadingBar" class="loading-bar"></div>
+                    <div class="loading-orb"><div class="orb-ring"></div><div class="orb-ring"></div></div>
+                    <h3>Analyzing Your Resume</h3>
+                    <p id="loadingText">Parsing document structure...</p>
+                    <div class="loading-steps">
+                        <div class="step-indicator active" id="step1">Step 1: Parse</div>
+                        <div class="step-indicator" id="step2">Step 2: Analyze</div>
+                        <div class="step-indicator" id="step3">Step 3: ATS Check</div>
+                        <div class="step-indicator" id="step4">Step 4: Improve</div>
+                        <div class="step-indicator" id="step5">Step 5: Generate</div>
+                    </div>
+                    <div class="loading-progress"><div class="loading-bar" id="loadingBar"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ RESULTS ═══ -->
+        <section class="results-section" id="resultsSection" style="display:none;">
+            <div class="container">
+
+                <!-- Score Cards Row -->
+                <div class="score-cards-row">
+                    <div class="score-card score-card-main">
+                        <div class="score-radial">
+                            <canvas id="overallGauge" width="160" height="160"></canvas>
+                            <div class="score-value"><span id="overallScore">0</span></div>
+                        </div>
+                        <h4>Overall Score</h4>
+                        <p class="score-label" id="overallLabel">—</p>
+                    </div>
+                    <div class="score-card">
+                        <div class="score-radial">
+                            <canvas id="atsGauge" width="120" height="120"></canvas>
+                            <div class="score-value score-value-sm"><span id="atsScore">0</span></div>
+                        </div>
+                        <h4>ATS Score</h4>
+                        <p class="score-label" id="atsLabel">—</p>
+                    </div>
+                    <div class="score-card">
+                        <div class="score-radial">
+                            <canvas id="readabilityGauge" width="120" height="120"></canvas>
+                            <div class="score-value score-value-sm"><span id="readabilityScore">0</span></div>
+                        </div>
+                        <h4>Readability</h4>
+                        <p class="score-label" id="readabilityLabel">—</p>
+                    </div>
+                </div>
+
+                <!-- Weak Sections -->
+                <div class="weak-sections-panel" id="weakSectionsPanel">
+                    <h3><i class="fas fa-triangle-exclamation"></i> Weak Sections Detected</h3>
+                    <div class="weak-sections-list" id="weakSectionsList"></div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs-nav" id="tabsNav">
+                    <button class="tab-btn active" data-tab="analysis"><i class="fas fa-chart-bar"></i> Analysis</button>
+                    <button class="tab-btn" data-tab="improvements"><i class="fas fa-wand-magic-sparkles"></i> Improvements</button>
+                    <button class="tab-btn" data-tab="jobmatch"><i class="fas fa-bullseye"></i> Job Match</button>
+                    <button class="tab-btn" data-tab="download"><i class="fas fa-download"></i> Download Resume</button>
+                </div>
+
+                <!-- Tab: Analysis -->
+                <div class="tab-pane active" id="analysisTab">
+                    <div class="analysis-grid">
+                        <div class="analysis-panel">
+                            <h4>Category Breakdown</h4>
+                            <div class="category-bars" id="categoryBars"></div>
+                        </div>
+                        <div class="analysis-panel">
+                            <h4>Missing Keywords</h4>
+                            <p class="panel-subtitle" id="keywordsSubtitle">Keywords your resume should include for this role</p>
+                            <div class="keyword-chips" id="keywordChips"></div>
+                        </div>
+                    </div>
+                    <div class="analysis-panel">
+                        <h4>Detailed Feedback</h4>
+                        <div class="feedback-sections" id="feedbackSections"></div>
+                    </div>
+                </div>
+
+                <!-- Tab: Improvements -->
+                <div class="tab-pane" id="improvementsTab">
+                    <div class="improvements-intro">
+                        <h4>Section-by-Section Improvements</h4>
+                        <p>Each section below shows your original text alongside the AI-improved version. Only wording, clarity, and professionalism are changed — no fabricated info.</p>
+                    </div>
+                    <div class="improvement-sections" id="improvementSections"></div>
+                </div>
+
+                <!-- Tab: Job Match -->
+                <div class="tab-pane" id="jobmatchTab">
+                    <div id="jobMatchContent">
+                        <div class="empty-state" id="noJdState">
+                            <i class="fas fa-bullseye"></i>
+                            <h4>No Job Description Provided</h4>
+                            <p>Paste a job description above and re-analyze to get your match score, missing keywords, and suggested improvements.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Download Resume -->
+                <div class="tab-pane" id="downloadTab">
+                    <div class="download-panel">
+                        <div class="download-preview">
+                            <h4>Improved Resume Preview</h4>
+                            <div class="resume-preview" id="resumePreview"></div>
+                        </div>
+                        <div class="download-sidebar">
+                            <h4>Export Options</h4>
+                            <button class="btn btn-primary btn-lg btn-full" id="downloadTxtBtn"><i class="fas fa-file-lines"></i> Download as TXT</button>
+                            <button class="btn btn-outline btn-lg btn-full" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> Export Report (PDF)</button>
+                            <div class="download-note">
+                                <p><i class="fas fa-shield-check"></i> Your data is never stored. Analysis runs in real-time and is deleted after your session.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="results-footer">
+                    <button class="btn btn-ghost" id="analyzeNewBtn"><i class="fas fa-arrow-rotate-right"></i> Analyze Another</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ ABOUT SECTION ═══ -->
+        <section class="about-section" id="aboutSection" style="display:none;">
+            <div class="container">
+                <div class="about-card">
+                    <h2>How ResumeAI Pro Works</h2>
+                    <div class="steps-grid">
+                        <div class="step-card"><span class="step-num">01</span><h4>Upload</h4><p>Drop your resume in PDF, DOCX, or TXT format. We parse every section automatically.</p></div>
+                        <div class="step-card"><span class="step-num">02</span><h4>Analyze</h4><p>Our engine scores content quality, formatting, ATS keywords, experience impact, and readability.</p></div>
+                        <div class="step-card"><span class="step-num">03</span><h4>Detect Weaknesses</h4><p>We pinpoint which sections need work, explain why, and rate each from Critical to Good.</p></div>
+                        <div class="step-card"><span class="step-num">04</span><h4>Optimize</h4><p>Weak sections are rewritten with strong action verbs, quantifiable achievements, and professional tone.</p></div>
+                        <div class="step-card"><span class="step-num">05</span><h4>Download</h4><p>Get your fully improved resume ready for Applicant Tracking Systems and human reviewers.</p></div>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Results Section -->
-            <div id="resultsSection" class="results-section" style="display: none;">
-                <!-- Score Overview -->
-                <div class="score-overview">
-                    <div class="score-card main-score">
-                        <h3>Overall Score</h3>
-                        <div class="score-gauge-container">
-                            <canvas id="scoreGauge" width="250" height="250"></canvas>
-                            <div class="score-display">
-                                <span id="overallScore" class="score-number">0</span>
-                                <span class="score-label">/100</span>
-                            </div>
-                        </div>
-                        <p id="scoreRating" class="score-rating"></p>
-                    </div>
-
-                    <div class="score-breakdown">
-                        <h3>Score Breakdown</h3>
-                        <div class="breakdown-items" id="breakdownItems">
-                            <!-- Dynamically populated -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabs Navigation -->
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="suggestions">
-                        <i class="fas fa-lightbulb"></i> Suggestions
-                    </button>
-                    <button class="tab-btn" data-tab="rewriter">
-                        <i class="fas fa-magic"></i> Content Rewriter
-                    </button>
-                    <button class="tab-btn" data-tab="comparison">
-                        <i class="fas fa-columns"></i> Comparison
-                    </button>
-                    <button class="tab-btn" data-tab="details">
-                        <i class="fas fa-chart-bar"></i> Detailed Analysis
-                    </button>
-                </div>
-
-                <!-- Tab Content -->
-                <div class="tab-content">
-                    <!-- Suggestions Tab -->
-                    <div id="suggestionsTab" class="tab-pane active">
-                        <div class="suggestions-container" id="suggestionsContainer">
-                            <!-- Dynamically populated -->
-                        </div>
-                    </div>
-
-                    <!-- Rewriter Tab -->
-                    <div id="rewriterTab" class="tab-pane">
-                        <div class="rewriter-container">
-                            <div class="rewriter-header">
-                                <h3>AI Content Rewriter</h3>
-                                <p>Select sections to improve with AI-powered suggestions</p>
-                            </div>
-                            <div id="rewriterSections" class="rewriter-sections">
-                                <!-- Dynamically populated -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Comparison Tab -->
-                    <div id="comparisonTab" class="tab-pane">
-                        <div class="comparison-container">
-                            <div class="comparison-header">
-                                <h3>Before & After Comparison</h3>
-                                <button class="btn btn-primary" id="downloadBtn">
-                                    <i class="fas fa-download"></i> Download Improved Resume
-                                </button>
-                            </div>
-                            <div class="comparison-view">
-                                <div class="comparison-column">
-                                    <h4><i class="fas fa-file"></i> Original</h4>
-                                    <div id="originalContent" class="content-display">
-                                        <!-- Original resume content -->
-                                    </div>
-                                </div>
-                                <div class="comparison-column">
-                                    <h4><i class="fas fa-file-check"></i> Improved</h4>
-                                    <div id="improvedContent" class="content-display">
-                                        <!-- Improved resume content -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Detailed Analysis Tab -->
-                    <div id="detailsTab" class="tab-pane">
-                        <div class="details-container">
-                            <h3>Detailed Analysis Report</h3>
-                            <div class="analysis-charts">
-                                <div class="chart-container" style="height: 400px;">
-                                    <canvas id="categoryChartCanvas"></canvas>
-                                </div>
-                                <div class="chart-container" style="height: 400px;">
-                                    <canvas id="comparisonChartCanvas"></canvas>
-                                </div>
-                            </div>
-                            <div id="detailedReport" class="detailed-report">
-                                <!-- Detailed analysis content -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <button class="btn btn-secondary" id="analyzeNewBtn">
-                        <i class="fas fa-upload"></i> Analyze New Resume
-                    </button>
-                    <button class="btn btn-primary" id="exportReportBtn">
-                        <i class="fas fa-file-pdf"></i> Export Report as PDF
-                    </button>
-                    <button class="btn btn-success" id="saveReportBtn">
-                        <i class="fas fa-cloud"></i> Save Analysis
-                    </button>
-                </div>
-            </div>
-
-            <!-- About Section -->
-            <section id="aboutSection" class="about-section" style="display: none;">
-                <div class="info-card">
-                    <h2>About ResumeAI</h2>
-                    <p>ResumeAI helps professionals elevate their resumes using data-driven analysis and AI-guided improvements. It parses PDF/DOCX/TXT, scores key categories, suggests targeted improvements, and produces exportable insights.</p>
-                    <ul class="info-list">
-                        <li>Fast, client-side parsing (PDF.js, Mammoth)</li>
-                        <li>Clear, professional UI with dark mode</li>
-                        <li>ATS-oriented keyword analysis</li>
-                        <li>Actionable suggestions and improved content</li>
-                    </ul>
-                </div>
-            </section>
-
-            <!-- Pricing Section -->
-            <section id="pricingSection" class="pricing-section" style="display: none;">
+        <!-- ═══ PRICING SECTION ═══ -->
+        <section class="pricing-section" id="pricingSection" style="display:none;">
+            <div class="container">
+                <h2 class="section-title">Simple, Transparent Pricing</h2>
                 <div class="pricing-grid">
                     <div class="price-card">
-                        <h3>Starter</h3>
-                        <p class="price">$0</p>
+                        <h3>Free</h3>
+                        <div class="price-amount">$0</div>
                         <ul>
-                            <li>Demo resume analysis</li>
-                            <li>Basic suggestions</li>
-                            <li>PDF export</li>
+                            <li>3 Resume Analyses / Day</li>
+                            <li>ATS Score & Readability</li>
+                            <li>Weak Section Detection</li>
+                            <li>Basic Improvement Suggestions</li>
                         </ul>
-                        <button class="btn btn-primary">Get Started</button>
+                        <button class="btn btn-outline btn-full">Current Plan</button>
                     </div>
-                    <div class="price-card highlighted">
+                    <div class="price-card price-card-featured">
+                        <span class="price-badge">Most Popular</span>
                         <h3>Pro</h3>
-                        <p class="price">$9</p>
+                        <div class="price-amount">$9<span>/mo</span></div>
                         <ul>
-                            <li>Unlimited analyses</li>
-                            <li>Advanced rewriter</li>
-                            <li>Priority insights</li>
+                            <li>Unlimited Analyses</li>
+                            <li>Full AI Rewriting Engine</li>
+                            <li>Job Match Scoring</li>
+                            <li>Priority Processing</li>
+                            <li>PDF Report Export</li>
                         </ul>
-                        <button class="btn btn-success">Upgrade</button>
+                        <button class="btn btn-primary btn-full">Upgrade to Pro</button>
                     </div>
                     <div class="price-card">
-                        <h3>Team</h3>
-                        <p class="price">$29</p>
+                        <h3>Enterprise</h3>
+                        <div class="price-amount">Custom</div>
                         <ul>
-                            <li>Team seats</li>
-                            <li>Shared libraries</li>
-                            <li>Priority support</li>
+                            <li>Team Dashboard</li>
+                            <li>API Access</li>
+                            <li>Dedicated Support</li>
+                            <li>Custom Scoring Models</li>
                         </ul>
-                        <button class="btn btn-secondary">Contact Sales</button>
+                        <button class="btn btn-outline btn-full">Contact Sales</button>
                     </div>
                 </div>
-            </section>
-        </div>
+            </div>
+        </section>
     </main>
 
-    <!-- Footer -->
+    <!-- ═══ FOOTER ═══ -->
     <footer class="footer">
-        <div class="container">
-            <p>&copy; 2024 ResumeAI. All rights reserved. | Built with AI-powered analysis</p>
+        <div class="container footer-inner">
+            <p>&copy; 2024 ResumeAI Pro. Built with precision.</p>
+            <p class="footer-note">Your data stays private — analysis is done in real-time and never stored.</p>
         </div>
     </footer>
 
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- App -->
     <script src="js/parser.js"></script>
     <script src="js/analyzer.js"></script>
     <script src="js/rewriter.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
