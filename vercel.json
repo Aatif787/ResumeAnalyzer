@@ -1,0 +1,33 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "server.py",
+            "use": "@vercel/python"
+        },
+        {
+            "src": "index.html",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "css/**",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "js/**",
+            "use": "@vercel/static"
+        },
+        {
+            "src": "sample_resume.txt",
+            "use": "@vercel/static"
+        }
+    ],
+    "routes": [
+        { "src": "/css/(.*)", "dest": "/css/$1" },
+        { "src": "/js/(.*)", "dest": "/js/$1" },
+        { "src": "/sample_resume.txt", "dest": "/sample_resume.txt" },
+        { "src": "/api/(.*)", "dest": "/server.py" },
+        { "src": "/", "dest": "/index.html" },
+        { "src": "/(.*)", "dest": "/server.py" }
+    ]
+}
