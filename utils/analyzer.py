@@ -191,6 +191,8 @@ class DeepResumeAnalyzer:
         weak_sections = self._detect_weak_sections()
         improvements = self._generate_improvements()
         jd_match = self._analyze_jd_match() if self.jd else None
+        sw = self._detect_strengths_weaknesses(ats_result)
+        faang = self._generate_faang()
 
         return {
             'overall_score': overall_score,
@@ -198,9 +200,12 @@ class DeepResumeAnalyzer:
             'readability_score': readability,
             'categories': categories,
             'weak_sections': weak_sections,
+            'strengths': sw['strengths'],
+            'weaknesses': sw['weaknesses'],
             'ats_details': ats_result,
             'feedback': self._generate_feedback(categories),
             'improvements': improvements,
+            'faang': faang,
             'jd_match': jd_match,
             'improved_resume': self._generate_full_improved_resume(),
             'stats': {
@@ -904,13 +909,89 @@ class DeepResumeAnalyzer:
             'suggestions': suggestions,
         }
 
+    # ── Strengths & Weaknesses ────────────────────────────────────
+    def _detect_strengths_weaknesses(self, ats_result):
+        strengths, weaknesses = [], []
+        av = self._count_action_verbs()
+        ww = self._count_weak_words()
+        metrics = len(re.findall(r'\d+[%$KkMm+]|\$[\d,.]+', self.text))
+        fp = len(re.findall(r'\b(?:I|me|my|myself)\b', self.text))
+
+        if av >= 5: strengths.append(f'Strong action verbs ({av} found)')
+        else: weaknesses.append(f'Weak action verb usage (only {av}, aim for 5+)')
+        if metrics >= 4: strengths.append(f'Good metric density ({metrics} quantifiable results)')
+        else: weaknesses.append(f'Few quantifiable metrics ({metrics}). Add percentages, dollars.')
+        if ww == 0: strengths.append('No weak filler words')
+        else: weaknesses.append(f'{ww} weak/filler words found')
+        if fp <= 1: strengths.append('Professional tone')
+        else: weaknesses.append(f'{fp} first-person pronouns')
+        if 'summary' in self.sections: strengths.append('Summary section present')
+        else: weaknesses.append('Missing professional summary')
+        if 'experience' in self.sections: strengths.append('Experience section included')
+        else: weaknesses.append('No experience section')
+        if 'skills' in self.sections: strengths.append('Skills section present')
+        else: weaknesses.append('Missing skills section')
+        if 'education' in self.sections: strengths.append('Education section present')
+        if 'certifications' in self.sections: strengths.append('Certifications included')
+        if 'projects' in self.sections: strengths.append('Projects section adds depth')
+        if re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', self.text): strengths.append('Contact email included')
+        if re.search(r'linkedin\.com/in/', self.text, re.I): strengths.append('LinkedIn profile linked')
+        else: weaknesses.append('No LinkedIn URL')
+        if ats_result['score'] >= 60: strengths.append(f'Good ATS coverage ({ats_result["score"]}%)')
+        else: weaknesses.append(f'Low ATS match ({ats_result["score"]}% for {ats_result["role"]})')
+
+        return {'strengths': strengths, 'weaknesses': weaknesses}
+
+    # ── FAANG Optimization ────────────────────────────────────────
+    def _generate_faang(self):
+        faang_replacements = [
+            (r'\b(?:was responsible for|responsible for)\b', 'Spearheaded', 'Spearheaded'),
+            (r'\b(?:helped|assisted)\s+(?:with|in|to)?\s*', 'Drove ', 'Drove'),
+            (r'\b(?:worked on|worked with)\b', 'Engineered', 'Engineered'),
+            (r'\bcreated\b', 'Built', 'Built'),
+            (r'\bmanaged\b', 'Orchestrated', 'Orchestrated'),
+            (r'\bimproved\b', 'Optimized', 'Optimized'),
+            (r'\bfixed\b', 'Resolved', 'Resolved'),
+            (r'\bset up\b', 'Architected', 'Architected'),
+            (r'\bstarted\b', 'Launched', 'Launched'),
+            (r'\bran\b', 'Executed', 'Executed'),
+            (r'\bmade\b', 'Delivered', 'Delivered'),
+            (r'\bchanged\b', 'Transformed', 'Transformed'),
+            (r'\bused\b', 'Leveraged', 'Leveraged'),
+            (r'\bupdated\b', 'Modernized', 'Modernized'),
+        ]
+        faang_verbs = ['Built','Developed','Engineered','Designed','Implemented','Optimized','Architected','Scaled','Launched','Delivered','Spearheaded','Pioneered','Automated','Streamlined','Transformed']
+        result = {}
+
+        for sec in ['summary', 'experience', 'projects']:
+            original = self.section_texts.get(sec, '')
+            if not original:
+                continue
+            items = []
+            for line in original.split('\n'):
+                line_s = line.strip()
+                if not line_s:
+                    continue
+                enhanced = line_s
+                applied_verb = None
+                for pattern, replacement, verb in faang_replacements:
+                    if re.search(pattern, enhanced, re.I):
+                        enhanced = re.sub(pattern, replacement, enhanced, count=1, flags=re.I)
+                        applied_verb = verb
+                        break
+                if enhanced != line_s:
+                    items.append({'before': line_s, 'after': enhanced, 'verb': applied_verb})
+            if items:
+                result[sec] = items
+
+        if not result:
+            result['_note'] = 'Resume already uses strong action verbs. Focus on quantifiable metrics for FAANG-level impact.'
+
+        return result
+
     # ── Helpers ───────────────────────────────────────────────────
     def _count_action_verbs(self):
         return sum(1 for w in self.words if w.lower() in self.action_verbs)
 
     def _count_weak_words(self):
         return sum(1 for w in self.words if w.lower() in self.weak_words)
-
-    def _rewrite_sentence(self, sentence, weak_word):
-        replacement = self._replacements.get(weak_word.lower(), 'Delivered')
-        return re.sub(re.escape(weak_word), replacement, sentence, count=1, flags=re.I)
